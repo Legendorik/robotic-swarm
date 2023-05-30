@@ -1,0 +1,3 @@
+DQN Training
+==========Result==========
+{'duration': '910.63s', 'train_time/model': '478.69s', 'test_step': 635094, 'test_episode': 4510, 'test_time': '221.69s', 'test_speed': '2864.84 step/s', 'best_reward': 537.2, 'best_result': '537.20 ± 46.03', 'train_step': 450000, 'train_episode': 3295, 'train_time/collector': '210.26s', 'train_speed': '653.17 step/s'}
