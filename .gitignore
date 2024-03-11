@@ -1,0 +1,5 @@
+Paper/.vscode
+Paper/ai/.idea
+Paper/ai/argos/__pycache__
+Paper/ai/zoo_argos/__pycache__
+Paper/ai/zoo_argos/envs/__pycache__
