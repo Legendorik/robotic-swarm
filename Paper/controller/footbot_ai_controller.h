@@ -57,6 +57,7 @@
 using namespace argos;
 using boost::asio::ip::udp;
 
+const short file_size = 128;
 /*
  * A controller is simply an implementation of the CCI_Controller class.
  */
@@ -161,7 +162,7 @@ public:
     * so the function could have been omitted. It's here just for
     * completeness.
     */
-   virtual void Destroy() {}
+   virtual void Destroy();
 
    void setDataType(std::string dt);
 
@@ -255,6 +256,7 @@ private:
 
    short m_send_port = 5030;
    short m_rec_port = 6030;
+   
 
    enum { max_length = 1024 };
    char m_data[max_length];
@@ -262,12 +264,17 @@ private:
    std::time_t start_time = std::time(nullptr);
    std::time_t current_time = std::time(nullptr);
    unsigned long long int iter = 0;
+   char* data_mmap;
+   char* actions_mmap;
+   const char* data_fname_prefix = "data_robot_";
+   const char* actions_fname_prefix = "actions_robot_";
 
    SWheelTurningParams m_sWheelTurningParams;
    void SetWheelSpeedsFromVector(const CVector2& c_heading);
 
 public:
    void startSocket();
+   void createMappings();
    void doSend(char m_data[max_length], std::size_t length);
    void doReceive();
 };

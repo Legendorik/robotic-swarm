@@ -13,6 +13,9 @@
 #include <argos3/core/simulator/entity/floor_entity.h>
 #include <argos3/core/utility/datatypes/color.h>
 #include <boost/algorithm/string.hpp>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 
 
@@ -81,7 +84,15 @@ void CFootBotAIController::Init(TConfigurationNode& t_node) {
    m_id = std::stoi(full_id.erase(0, 2));
 
    m_state = State();
-   startSocket();
+  //  startSocket();
+   createMappings();
+
+    
+}
+
+void CFootBotAIController::Destroy() {
+  munmap(data_mmap, file_size);
+  munmap(actions_mmap, file_size);
 }
 
 /****************************************/
@@ -104,40 +115,82 @@ void CFootBotAIController::startSocket(){
 /****************************************/
 /****************************************/
 
-void CFootBotAIController::doSend(char data[max_length], std::size_t length){
-  m_receiver_endpoint = boost::asio::ip::udp::endpoint(
-    boost::asio::ip::address::from_string("127.0.0.1"),
-    m_rec_port);
+void CFootBotAIController::createMappings(){
+  
+  char data_filename[20];
+  char actions_filename[20];
+  snprintf(data_filename, 20, "%s%d", data_fname_prefix, m_id);
+  snprintf(actions_filename, 20, "%s%d", actions_fname_prefix, m_id);
+  int data_fd = -1;
+  if ((data_fd = open(data_filename, O_RDWR, 0)) == -1){
+    printf("unable to open %s\n", data_filename);
+  }
+  int actions_fd = -1;
+  if ((actions_fd = open(actions_filename, O_RDWR, 0)) == -1){
+    printf("unable to open %s\n", actions_filename);
+  }
+  std::cerr << "Its okay" << std::endl;
+  // open the file in shared memory
+  data_mmap = (char*) mmap(NULL, file_size, PROT_WRITE, MAP_SHARED, data_fd, 0);
+  actions_mmap = (char*) mmap(NULL, file_size, PROT_READ, MAP_SHARED, actions_fd, 0);
+  close(data_fd);
+  close(actions_fd);
+}
 
-  m_out_socket->async_send_to(
-    boost::asio::buffer(data, length), m_receiver_endpoint,
-    [this](boost::system::error_code, std::size_t){});
+void CFootBotAIController::doSend(char data[max_length], std::size_t length){
+  // m_receiver_endpoint = boost::asio::ip::udp::endpoint(
+  //   boost::asio::ip::address::from_string("127.0.0.1"),
+  //   m_rec_port);
+
+  // m_out_socket->async_send_to(
+  //   boost::asio::buffer(data, length), m_receiver_endpoint,
+  //   [this](boost::system::error_code, std::size_t){});
+
+  char buf[file_size];
+  strncpy(buf, data, length);
+  for (size_t i = length; i < file_size; i++)
+  {
+    buf[i] = '\0';
+  }
+
+  std::cout<< m_id << " SEND: " << buf << std::endl;
+  
+  strcpy(data_mmap, buf);
 }
 
 /****************************************/
 /****************************************/
 
 void CFootBotAIController::doReceive(){
-  std::cout<<"Start doReceive" << std::endl;
-  m_in_socket->async_receive_from(
-      boost::asio::buffer(m_data, max_length), m_sender_endpoint,
-      [this](boost::system::error_code ec, std::size_t bytes_recvd)
-      {
-        if (!ec && bytes_recvd > 0)
-        {
-          std::vector<std::string> result;
-          boost::split(result, m_data, boost::is_any_of(";"));
-          SetWheelSpeedsFromVector(CVector2(std::stof(result[0]), std::stof(result[1])));
-          std::cout<<"Incoming: " << result[0] << "; " << result[1] << std::endl;
-          //m_pcWheels->SetLinearVelocity(std::stof(result[0]), std::stof(result[1]));
+  // m_in_socket->async_receive_from(
+  //     boost::asio::buffer(m_data, max_length), m_sender_endpoint,
+  //     [this](boost::system::error_code ec, std::size_t bytes_recvd)
+  //     {
+  //       if (!ec && bytes_recvd > 0)
+  //       {
+  //         std::vector<std::string> result;
+  //         boost::split(result, m_data, boost::is_any_of(";"));
+  //         SetWheelSpeedsFromVector(CVector2(std::stof(result[0]), std::stof(result[1])));
+  //         // std::cout<<"Incoming: " << result[0] << "; " << result[1] << std::endl;
+  //         //m_pcWheels->SetLinearVelocity(std::stof(result[0]), std::stof(result[1]));
 
-          doReceive();
-        }
-        else
-        {
-          doReceive();
-        }
-      });
+  //         doReceive();
+  //       }
+  //       else
+  //       {
+  //         doReceive();
+  //       }
+  //     });
+
+  char buf[file_size];
+  strncpy(buf, actions_mmap, file_size);
+  std::vector<std::string> result;
+  boost::split(result, buf, boost::is_any_of(";"));
+  if (result.size() >= 2) {
+    std::cout<< m_id << " RECEIVE: " << buf << std::endl;
+    SetWheelSpeedsFromVector(CVector2(std::stof(result[0]), std::stof(result[1])));
+  }
+  
 }
 
 /****************************************/
@@ -205,7 +258,7 @@ void CFootBotAIController::SetWheelSpeedsFromVector(const CVector2& c_heading) {
       fRightWheelSpeed = fSpeed1;
    }
    /* Finally, set the wheel speeds */
-   std::cout << "Speeds: " << fLeftWheelSpeed << "; " << fRightWheelSpeed << std::endl;
+  //  std::cout << "Speeds: " << fLeftWheelSpeed << "; " << fRightWheelSpeed << std::endl;
    m_pcWheels->SetLinearVelocity(fLeftWheelSpeed, fRightWheelSpeed);
 }
 
@@ -276,7 +329,9 @@ std::string CFootBotAIController::State::GetPackage(){
 /*************************************/
 
 void CFootBotAIController::ControlStep() {
-  std::cerr <<m_id<<", "<< "entering control step" << std::endl;
+  // std::cerr <<m_id<<", "<< "entering control step" << std::endl;
+
+
   iter++;
   if (iter == 2) {
     start_time = std::time(nullptr);
@@ -287,17 +342,18 @@ void CFootBotAIController::ControlStep() {
     diff_time = 1;
   }
   double itersPerSecond = iter / diff_time;
-  std::cout << "Per second: " << itersPerSecond << std::endl;
+  // std::cout << "Per second: " << itersPerSecond << std::endl;
+  doReceive();
 
 
   const CCI_PositioningSensor::SReading& sPosRead = m_pcPos->GetReading();
-  std::cout << "Position: " << sPosRead.Position.GetX() << "; " << sPosRead.Position.GetY() << std::endl;
+  // std::cout << "Position: " << sPosRead.Position.GetX() << "; " << sPosRead.Position.GetY() << std::endl;
   CColor clr = m_cSpace.GetFloorEntity().GetColorAtPoint(sPosRead.Position.GetX(), sPosRead.Position.GetY());
-  std::cout << clr.GetRed() << "; " <<  clr.GetGreen() << "; " << clr.GetBlue() << std::endl;
+  // std::cout << clr.GetRed() << "; " <<  clr.GetGreen() << "; " << clr.GetBlue() << std::endl;
   
   m_state.Update(sPosRead.Position.GetX(), sPosRead.Position.GetY());
 
-  m_io_context->poll();
+  // m_io_context->poll();
   std::string msg = m_state.GetPackage() + ";" + std::to_string(clr.ToGrayScale());
   char pack[msg.size() + 1];
   strcpy(pack, msg.c_str());

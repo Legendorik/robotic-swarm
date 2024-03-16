@@ -1,4 +1,4 @@
-from time import time
+from time import sleep, time
 import gymnasium as gym
 from zoo_argos.envs.argos_env import ArgosEnv
 
@@ -28,6 +28,7 @@ for agent in env.agent_iter(max_iter=2000):
         action = env.action_space(agent).sample() # this is where you would insert your policy
     # print('Agent action', agent, action)
     env.step(action)
+    # sleep(0.05)
 
 print('Total iterations: ', iter)
 env.close()

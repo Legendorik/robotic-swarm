@@ -1,7 +1,8 @@
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
-from argos import argos_runner, argos_io
+from argos.argos_runner import Argos
+from argos.argos_io import ArgosIO
 from pettingzoo import AECEnv
 from pettingzoo.utils import agent_selector, wrappers
 import functools
@@ -85,8 +86,9 @@ class ArgosEnv(AECEnv):
         """
         
         if (self.argos is None):
-            self.argos = argos_runner.Argos()
-            self.argos_io = argos_io.ArgosIO(self.num_robots, verbose=False)
+            self.argos = Argos(self.num_robots, verbose=True)
+            
+            self.argos_io = ArgosIO(self.num_robots, verbose=False)
 
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
@@ -127,20 +129,22 @@ class ArgosEnv(AECEnv):
         self.state[self.agent_selection] = action
 
         # in messages
-        in_msg = self.argos_io.receive_from(agent_id)
+        # in_msg = self.argos_io.receive_from(agent_id)
+        in_msg = self.argos.receive_from(agent_id)
         in_msg = in_msg.split(";")
-        # get floor color
-        floor = float(in_msg[2].replace('\x00', '').replace(',', '.'))
-        self.rewards[agent] = (floor - 128) / 2
+        if (len(in_msg) >= 2):
+            # get floor color
+            floor = float(in_msg[2].replace('\x00', '').replace(',', '.'))
+            self.observations[agent] = [floor]
+            self.rewards[agent] = (floor - 128) / 2
 
         # out messages
         msg = str(action[0]/10.0) + ";" + str(action[1]/10.0)
-        # msg = str(5) + ";" + str(5)
-        self.argos_io.send_to(msg, agent_id)
+        # msg = str(5.0) + ";" + str(5.0)
+        # self.argos_io.send_to(msg, agent_id)
+        self.argos.send_to(msg, agent_id)
 
         #print("action: ", action)
-
-        self.observations[agent] = [floor]
 
         # if (self._cumulative_rewards[agent] < -800):
         #     self.truncations[agent] = True
