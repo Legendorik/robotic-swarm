@@ -8,9 +8,9 @@ from pettingzoo.utils import agent_selector, wrappers
 import functools
 
 class ArgosEnv(AECEnv):
-    metadata = {'render.modes': ['human'], "name": "rps_v2"}
+    metadata = {'render.modes': ['human', 'no_render'], "name": "ArgosEnv"}
 
-    def __init__(self):
+    def __init__(self, render_mode='human'):
         # initialize and run argos
         self.num_robots = 2
         self.argos = None
@@ -30,7 +30,7 @@ class ArgosEnv(AECEnv):
             agent: spaces.Box(0, 256) for agent in self.possible_agents
         }
 
-        self.render_mode = 'human'
+        self.render_mode = render_mode
 
         # self.action_space = spaces.Box(np.array([0, 0]), np.array([+50, +50]))
         # self.observation_space = spaces.Box(0, 256)
@@ -57,7 +57,7 @@ class ArgosEnv(AECEnv):
         should return a sane observation (though not necessarily the most up to date possible)
         at any time after reset() is called.
         """
-        return np.array(self.observations[agent])
+        return self.observations[agent]
 
     def close(self):
         """
@@ -86,9 +86,9 @@ class ArgosEnv(AECEnv):
         """
         
         if (self.argos is None):
-            self.argos = Argos(self.num_robots, verbose=True)
+            self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=True)
             
-            self.argos_io = ArgosIO(self.num_robots, verbose=False)
+            # self.argos_io = ArgosIO(self.num_robots, verbose=False)
 
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
@@ -98,7 +98,7 @@ class ArgosEnv(AECEnv):
         self.infos = {agent: {} for agent in self.agents}
         self.state = {agent: None for agent in self.agents}
 
-        self.observations = {agent: [0] for agent in self.agents}
+        self.observations = {agent: self.get_observation_and_mask(np.array([0])) for agent in self.agents}
 
         self.game_over = False
 
@@ -107,6 +107,12 @@ class ArgosEnv(AECEnv):
         """
         self._agent_selector = agent_selector(self.agents)
         self.agent_selection = self._agent_selector.next()
+
+    def get_observation_and_mask(self, obs):
+        return {"observation": obs, }#"action_mask": self.get_action_mask()}
+    
+    def get_action_mask(self):
+        return [[1, 1], [1, 1]]
 
     def step(self, action):
         agent = self.agent_selection
@@ -135,7 +141,7 @@ class ArgosEnv(AECEnv):
         if (len(in_msg) >= 2):
             # get floor color
             floor = float(in_msg[2].replace('\x00', '').replace(',', '.'))
-            self.observations[agent] = [floor]
+            self.observations[agent] = self.get_observation_and_mask(np.array([floor]))
             self.rewards[agent] = (floor - 128) / 2
 
         # out messages
@@ -146,12 +152,12 @@ class ArgosEnv(AECEnv):
 
         #print("action: ", action)
 
-        # if (self._cumulative_rewards[agent] < -800):
-        #     self.truncations[agent] = True
-        #     self.game_over = True
+        if (self._cumulative_rewards[agent] < -800):
+            self.truncations[agent] = True
+            self.game_over = True
 
-        # if (self.game_over):
-        #     self.terminations[agent] = True
+        if (self.game_over):
+            self.terminations[agent] = True
 
         if self._agent_selector.is_last():
             self._accumulate_rewards()

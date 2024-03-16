@@ -84,6 +84,11 @@ void CFootBotAIController::Init(TConfigurationNode& t_node) {
    m_id = std::stoi(full_id.erase(0, 2));
 
    m_state = State();
+   std::cout << "FILES_ID: " << getenv("FILES_ID") << std::endl;
+   files_id = getenv("FILES_ID");
+   if (files_id == NULL) {
+    files_id = "1";
+   }
   //  startSocket();
    createMappings();
 
@@ -117,19 +122,19 @@ void CFootBotAIController::startSocket(){
 
 void CFootBotAIController::createMappings(){
   
-  char data_filename[20];
-  char actions_filename[20];
-  snprintf(data_filename, 20, "%s%d", data_fname_prefix, m_id);
-  snprintf(actions_filename, 20, "%s%d", actions_fname_prefix, m_id);
+  char data_filename[25];
+  char actions_filename[25];
+  snprintf(data_filename, 25, "%s%s%d", files_id, data_fname, m_id);
+  snprintf(actions_filename, 25, "%s%s%d",files_id, actions_fname, m_id);
   int data_fd = -1;
   if ((data_fd = open(data_filename, O_RDWR, 0)) == -1){
-    printf("unable to open %s\n", data_filename);
+    std::cerr << "Unable to open" << data_filename << std::endl;
   }
   int actions_fd = -1;
   if ((actions_fd = open(actions_filename, O_RDWR, 0)) == -1){
-    printf("unable to open %s\n", actions_filename);
+    std::cerr << "Unable to open" << actions_filename << std::endl;
   }
-  std::cerr << "Its okay" << std::endl;
+
   // open the file in shared memory
   data_mmap = (char*) mmap(NULL, file_size, PROT_WRITE, MAP_SHARED, data_fd, 0);
   actions_mmap = (char*) mmap(NULL, file_size, PROT_READ, MAP_SHARED, actions_fd, 0);

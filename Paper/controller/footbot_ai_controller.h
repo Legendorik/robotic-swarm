@@ -266,8 +266,9 @@ private:
    unsigned long long int iter = 0;
    char* data_mmap;
    char* actions_mmap;
-   const char* data_fname_prefix = "data_robot_";
-   const char* actions_fname_prefix = "actions_robot_";
+   char* files_id;
+   const char* data_fname = "_data_robot_";
+   const char* actions_fname = "_actions_robot_";
 
    SWheelTurningParams m_sWheelTurningParams;
    void SetWheelSpeedsFromVector(const CVector2& c_heading);
