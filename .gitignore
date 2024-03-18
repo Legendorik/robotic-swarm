@@ -3,3 +3,9 @@ Paper/ai/.idea
 Paper/ai/argos/__pycache__
 Paper/ai/zoo_argos/__pycache__
 Paper/ai/zoo_argos/envs/__pycache__
+Paper/*_actions_robot_*
+Paper/*_data_robot_*
+Paper/log_*.txt
+Paper/logerr_*.txt
+Practice/__pycache__
+Practice/.vscode/launch.json

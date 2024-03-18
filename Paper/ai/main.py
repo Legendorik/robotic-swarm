@@ -19,7 +19,7 @@ for agent in env.agent_iter(max_iter=2000):
     print('Per second: ', iter_per_second)
     observation, reward, termination, truncation, info = env.last()
     # print('Observation shape', observation.shape, env.observation_space(agent))
-    print('Agent [', agent, '] sees: ', observation['observation'])
+    print('Agent [', agent, '] sees: ', observation)
     print('Agent [', agent, '] reward: ', reward)
     if termination or truncation:
         action = None

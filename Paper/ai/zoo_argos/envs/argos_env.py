@@ -1,3 +1,4 @@
+from math import cos, pi, sin
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
@@ -24,10 +25,11 @@ class ArgosEnv(AECEnv):
         
                 
         self._action_spaces = {
-            agent: spaces.Box(np.array([0, 0]), np.array([+50, +50])) for agent in self.possible_agents
+            # agent: spaces.Box(np.array([0, 0]), np.array([+50, +50]), shape=(2,)) for agent in self.possible_agents
+            agent: spaces.Discrete(9) for agent in self.possible_agents
         }
         self._observation_spaces = {
-            agent: spaces.Box(0, 256) for agent in self.possible_agents
+            agent: spaces.Box(0, 256, shape=(1,)) for agent in self.possible_agents
         }
 
         self.render_mode = render_mode
@@ -49,7 +51,6 @@ class ArgosEnv(AECEnv):
     @functools.lru_cache(maxsize=None)
     def action_space(self, agent):
         return self._action_spaces[agent]
-        # return Discrete(4)
     
     def observe(self, agent):
         """
@@ -98,7 +99,7 @@ class ArgosEnv(AECEnv):
         self.infos = {agent: {} for agent in self.agents}
         self.state = {agent: None for agent in self.agents}
 
-        self.observations = {agent: self.get_observation_and_mask(np.array([0])) for agent in self.agents}
+        self.observations = {agent: np.array([0]) for agent in self.agents}
 
         self.game_over = False
 
@@ -141,11 +142,13 @@ class ArgosEnv(AECEnv):
         if (len(in_msg) >= 2):
             # get floor color
             floor = float(in_msg[2].replace('\x00', '').replace(',', '.'))
-            self.observations[agent] = self.get_observation_and_mask(np.array([floor]))
+            self.observations[agent] = np.array([floor])
             self.rewards[agent] = (floor - 128) / 2
 
         # out messages
-        msg = str(action[0]/10.0) + ";" + str(action[1]/10.0)
+        heading = (5 * cos(action * pi/8), 5 * sin(action * pi/8))
+        msg = str(heading[0]) + ";" + str(heading[1])
+        # msg = str(action[0]/10.0) + ";" + str(action[1]/10.0)
         # msg = str(5.0) + ";" + str(5.0)
         # self.argos_io.send_to(msg, agent_id)
         self.argos.send_to(msg, agent_id)

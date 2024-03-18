@@ -63,8 +63,8 @@ def _get_env():
 
 if __name__ == "__main__":
     # ======== Step 1: Environment setup =========
-    train_envs = DummyVectorEnv([_get_env for _ in range(1)])
-    test_envs = DummyVectorEnv([_get_env for _ in range(1)])
+    train_envs = DummyVectorEnv([_get_env for _ in range(2)])
+    test_envs = DummyVectorEnv([_get_env for _ in range(2)])
 
     # seed
     seed = 1

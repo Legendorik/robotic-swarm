@@ -23,7 +23,7 @@ env.reset()
 
 #     if terminated or truncated:
 #         observation, info = env.reset()
-print('space:', env.observation_spaces)
+# print('space:', env.observation_spaces)
 for agent in env.agent_iter():
     observation, reward, termination, truncation, info = env.last()
     # print('Observation shape', observation.shape, env.observation_space(agent))
