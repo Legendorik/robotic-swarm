@@ -87,7 +87,7 @@ class ArgosEnv(AECEnv):
         """
         
         if (self.argos is None):
-            self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=True)
+            self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
             
             # self.argos_io = ArgosIO(self.num_robots, verbose=False)
 

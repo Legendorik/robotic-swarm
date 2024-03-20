@@ -22,6 +22,8 @@ class Argos:
         self.actions_mmaps : List[mmap.mmap] = []
         self.verbose = verbose
         self.render_mode = render_mode
+        self.files_id = Argos.created_instances
+        Argos.created_instances = Argos.created_instances + 1
         self.setup()
 
     def setup(self):
@@ -29,25 +31,24 @@ class Argos:
         self.create_mappings()
         
         env = os.environ.copy()
-        files_id = str(Argos.created_instances)
-        env['FILES_ID'] = files_id
+        env['FILES_ID'] = str(self.files_id)
 
         if (self.render_mode == 'human'):
-            self.argos_process = subprocess.Popen([argos_path, '-l', f'./log_{files_id}.txt', '-e', f'./logerr_{files_id}.txt', '-c', argos_experiment_path], stdout=subprocess.PIPE, env=env)
+            self.argos_process = subprocess.Popen([argos_path, '-l', f'./log_{self.files_id}.txt', '-e', f'./logerr_{self.files_id}.txt', '-c', argos_experiment_path], stdout=subprocess.PIPE, env=env)
             sleep(3) # wait for argos to start
             
         else:
             # self.argos_process = subprocess.Popen([argos_path, '-z', '-c', argos_experiment_path], stdout=subprocess.PIPE) # При запуске из питона аргос постоянно отправляет одни и те же наблюдения. При запуске аргоса отдельно все работает
-            self.argos_process = subprocess.Popen([argos_path, '-z', '-l', f'./log_{files_id}.txt', '-e', f'./logerr_{files_id}.txt', '-c', argos_experiment_path], stdout=subprocess.PIPE,env=env)
+            self.argos_process = subprocess.Popen([argos_path, '-z', '-l', f'./log_{self.files_id}.txt', '-e', f'./logerr_{self.files_id}.txt', '-c', argos_experiment_path], stdout=subprocess.PIPE,env=env)
             sleep(.5) # wait for argos to start
             # print("PID"self.argos_process.pid)
             
-        Argos.created_instances = Argos.created_instances + 1
+        
         
         # threading.Thread(target=self.start, daemon=True).start()
 
     def create_files(self):
-        files_id = str(Argos.created_instances)
+        files_id = str(self.files_id)
         for i in range(self.num_robots):
             data_file = files_id + data_fname + str(i)
             actions_file = files_id + actions_fname + str(i)
@@ -59,7 +60,7 @@ class Argos:
                     fd.write(b'\0' * file_size)
     
     def create_mappings(self):
-        files_id = str(Argos.created_instances)
+        files_id = str(self.files_id)
         for i in range(self.num_robots):
             data_file = files_id + data_fname + str(i)
             actions_file = files_id + actions_fname + str(i)
@@ -95,10 +96,11 @@ class Argos:
     def kill(self):
         # a = self.argos_process.stdout.readlines()
         # print(a)
+        files_id = str(self.files_id)
         self.argos_process.kill()
         for i in range(self.num_robots):
-            data_file = data_fname + str(i)
-            actions_file = actions_fname + str(i)
+            data_file = files_id + data_fname + str(i)
+            actions_file = files_id + actions_fname + str(i)
             self.data_mmaps[i].close()
             self.actions_mmaps[i].close()
             os.remove(data_file)
