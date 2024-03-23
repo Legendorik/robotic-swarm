@@ -264,6 +264,7 @@ private:
    std::time_t start_time = std::time(nullptr);
    std::time_t current_time = std::time(nullptr);
    unsigned long long int iter = 0;
+   std::string last_received_iter = "";
    char* data_mmap;
    char* actions_mmap;
    char* files_id;

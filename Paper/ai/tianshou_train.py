@@ -16,6 +16,7 @@ def _get_agents(
     agent_learn: Optional[BasePolicy] = None,
     agent_opponent: Optional[BasePolicy] = None,
     optim: Optional[torch.optim.Optimizer] = None,
+    loadTrainedModel = False,
 ) -> Tuple[BasePolicy, torch.optim.Optimizer, list]:
     env = _get_env()
     observation_space = (
@@ -40,6 +41,9 @@ def _get_agents(
             estimation_step=3,
             target_update_freq=320,
         )
+        if (loadTrainedModel):
+            ### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            agent_learn.load_state_dict(torch.load('./log/ttt/dqn/policy.pth'))
 
     if agent_opponent is None:
         # agent_opponent = RandomPolicy()
@@ -50,6 +54,8 @@ def _get_agents(
             estimation_step=3,
             target_update_freq=320,
         )
+        if (loadTrainedModel):
+            agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy.pth'))
 
     agents = [agent_opponent, agent_learn]
     policy = MultiAgentPolicyManager(agents, env)
@@ -63,8 +69,8 @@ def _get_env():
 
 if __name__ == "__main__":
     # ======== Step 1: Environment setup =========
-    train_envs = DummyVectorEnv([_get_env for _ in range(2)])
-    test_envs = DummyVectorEnv([_get_env for _ in range(2)])
+    train_envs = DummyVectorEnv([_get_env for _ in range(1)])
+    test_envs = DummyVectorEnv([_get_env for _ in range(1)])
 
     # seed
     seed = 1
@@ -85,7 +91,7 @@ if __name__ == "__main__":
     )
     test_collector = Collector(policy, test_envs, exploration_noise=True)
     # policy.set_eps(1)
-    train_collector.collect(n_step=64 * 10)  # batch size * training_num
+    train_collector.collect(n_step=64 * 1)  # batch size * training_num
 
     # ======== Step 4: Callback functions setup =========
     def save_best_fn(policy):
@@ -94,7 +100,7 @@ if __name__ == "__main__":
         torch.save(policy.policies[agents[1]].state_dict(), model_save_path)
 
     def stop_fn(mean_rewards):
-        return mean_rewards >= 0.6
+        return mean_rewards >= 10
 
     def train_fn(epoch, env_step):
         policy.policies[agents[1]].set_eps(0.1)
@@ -103,7 +109,7 @@ if __name__ == "__main__":
         policy.policies[agents[1]].set_eps(0.05)
 
     def reward_metric(rews):
-        return rews[:, 1]
+        return rews[:, 0]
 
     # ======== Step 5: Run the trainer =========
     result = offpolicy_trainer(
@@ -111,7 +117,7 @@ if __name__ == "__main__":
         train_collector=train_collector,
         test_collector=test_collector,
         max_epoch=50,
-        step_per_epoch=1000,
+        step_per_epoch=100,
         step_per_collect=50,
         episode_per_test=10,
         batch_size=64,

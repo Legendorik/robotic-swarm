@@ -9,3 +9,4 @@ Paper/log_*.txt
 Paper/logerr_*.txt
 Practice/__pycache__
 Practice/.vscode/launch.json
+Paper/ai/__pycache__

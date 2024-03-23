@@ -1,4 +1,5 @@
 from math import cos, pi, sin
+from time import sleep
 import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
@@ -33,6 +34,10 @@ class ArgosEnv(AECEnv):
         }
 
         self.render_mode = render_mode
+
+        self.iter = 0
+
+        self.previous_observations = None
 
         # self.action_space = spaces.Box(np.array([0, 0]), np.array([+50, +50]))
         # self.observation_space = spaces.Box(0, 256)
@@ -90,7 +95,11 @@ class ArgosEnv(AECEnv):
             self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
             
             # self.argos_io = ArgosIO(self.num_robots, verbose=False)
-
+        else:
+            self.argos.kill()
+            sleep(.25)
+            self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
+        self.iter = 0
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
@@ -100,6 +109,7 @@ class ArgosEnv(AECEnv):
         self.state = {agent: None for agent in self.agents}
 
         self.observations = {agent: np.array([0]) for agent in self.agents}
+        self.previous_observations = {agent: np.array([0]) for agent in self.agents}
 
         self.game_over = False
 
@@ -116,6 +126,7 @@ class ArgosEnv(AECEnv):
         return [[1, 1], [1, 1]]
 
     def step(self, action):
+        self.iter = self.iter + 1
         agent = self.agent_selection
         agent_id = self.agent_name_mapping[agent]
         if (
@@ -139,15 +150,20 @@ class ArgosEnv(AECEnv):
         # in_msg = self.argos_io.receive_from(agent_id)
         in_msg = self.argos.receive_from(agent_id)
         in_msg = in_msg.split(";")
-        if (len(in_msg) >= 2):
+        if (len(in_msg) >= 3):
             # get floor color
-            floor = float(in_msg[2].replace('\x00', '').replace(',', '.'))
+            floor = float(in_msg[3].replace('\x00', '').replace(',', '.'))
+            self.previous_observations[agent] = self.observations[agent]
             self.observations[agent] = np.array([floor])
-            self.rewards[agent] = (floor - 128) / 2
+            if (np.array_equal(self.previous_observations[agent], self.observations[agent])):
+                self.rewards[agent] = 0
+            else:
+                self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
 
+        # action = 0
         # out messages
         heading = (5 * cos(action * pi/8), 5 * sin(action * pi/8))
-        msg = str(heading[0]) + ";" + str(heading[1])
+        msg = str(self.iter) + ";" + str(heading[0]) + ";" + str(heading[1])
         # msg = str(action[0]/10.0) + ";" + str(action[1]/10.0)
         # msg = str(5.0) + ";" + str(5.0)
         # self.argos_io.send_to(msg, agent_id)
@@ -155,7 +171,14 @@ class ArgosEnv(AECEnv):
 
         #print("action: ", action)
 
-        if (self._cumulative_rewards[agent] < -800):
+        if (self.iter % 199 == 0 or self.iter % 199 == 1 ): 
+            print(self.iter, "; AGENT: ", agent, "  IN MESSAGE: ", in_msg, "  OUT MESSAGE: ", msg, " REWARD: ", self.rewards[agent], " CUMULATIVE REWARD: ", self._cumulative_rewards[agent] ) 
+
+        if (self._cumulative_rewards[agent] < -10):
+            self.truncations[agent] = True
+            self.game_over = True
+        
+        if (self.iter > 400):
             self.truncations[agent] = True
             self.game_over = True
 

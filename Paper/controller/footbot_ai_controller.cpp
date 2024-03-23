@@ -157,8 +157,8 @@ void CFootBotAIController::doSend(char data[max_length], std::size_t length){
   {
     buf[i] = '\0';
   }
-
-  std::cout<< m_id << " SEND: " << buf << std::endl;
+  if (iter % 15 == 0)
+    std::cout<< m_id << " SEND: " << buf << std::endl;
   
   strcpy(data_mmap, buf);
 }
@@ -191,9 +191,13 @@ void CFootBotAIController::doReceive(){
   strncpy(buf, actions_mmap, file_size);
   std::vector<std::string> result;
   boost::split(result, buf, boost::is_any_of(";"));
-  if (result.size() >= 2) {
-    std::cout<< m_id << " RECEIVE: " << buf << std::endl;
-    SetWheelSpeedsFromVector(CVector2(std::stof(result[0]), std::stof(result[1])));
+  if (result.size() >= 3) {
+    if (last_received_iter != result[0]) {
+      last_received_iter = result[0];
+      std::cout<< m_id << " RECEIVE: " << buf << std::endl;
+      SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
+    }
+
   }
   
 }
@@ -359,7 +363,7 @@ void CFootBotAIController::ControlStep() {
   m_state.Update(sPosRead.Position.GetX(), sPosRead.Position.GetY());
 
   // m_io_context->poll();
-  std::string msg = m_state.GetPackage() + ";" + std::to_string(clr.ToGrayScale());
+  std::string msg = std::to_string(iter) + ";" + m_state.GetPackage() + ";" + std::to_string(clr.ToGrayScale());
   char pack[msg.size() + 1];
   strcpy(pack, msg.c_str());
 
