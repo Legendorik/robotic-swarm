@@ -1,6 +1,8 @@
 from time import sleep, time
 from zoo_argos.envs.argos_env import ArgosEnv
-env = ArgosEnv(render_mode='no_render')
+from zoo_argos.envs.argos_foraging_env import ArgosForagingEnv
+env = ArgosForagingEnv(render_mode='human')
+# env = ArgosEnv(render_mode='no_render')
 # env = ArgosEnv(render_mode='human')
 env.reset()
 

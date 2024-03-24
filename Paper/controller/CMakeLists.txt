@@ -23,10 +23,17 @@ link_directories(${ARGOS_LIBRARY_DIRS} /usr/local/lib/argos3/)
 include_directories(${CMAKE_SOURCE_DIR} ${ARGOS_INCLUDE_DIRS} ${LUA_INCLUDE_DIR} ${Boost_INCLUDE_DIRS})
 
 add_library(footbot_ai_controller MODULE footbot_ai_controller.h footbot_ai_controller.cpp)
+add_library(footbot_foraging SHARED footbot_foraging.h footbot_foraging.cpp)
+add_library(foraging_loop_functions SHARED foraging_loop_functions.h foraging_loop_functions.cpp)
+add_library(foraging_qt_user_functions SHARED foraging_qt_user_functions.h foraging_qt_user_functions.cpp)
 target_link_libraries(footbot_ai_controller
+  footbot_foraging
+  foraging_loop_functions
+  foraging_qt_user_functions
   argos3core_simulator
   argos3plugin_simulator_footbot
   argos3plugin_simulator_genericrobot
+  argos3plugin_simulator_qtopengl
   ${QT_LIBRARIES} ${GLUT_LIBRARY} ${OPENGL_LIBRARY} ${Boost_LIBRARIES})
 
 MESSAGE( STATUS "QT_LIBRARIES -> : " ${QT_LIBRARIES} )

@@ -8,6 +8,7 @@ from typing import List
 
 argos_path = 'argos3'
 argos_experiment_path = './argos/footbot-ai.argos'
+argos_foraging_path = './argos/foraging.argos'
 data_fname = '_data_robot_'
 actions_fname = '_actions_robot_'
 file_size = 128
@@ -34,12 +35,12 @@ class Argos:
         env['FILES_ID'] = str(self.files_id)
 
         if (self.render_mode == 'human'):
-            self.argos_process = subprocess.Popen([argos_path, '-l', f'./log_{self.files_id}.txt', '-e', f'./logerr_{self.files_id}.txt', '-c', argos_experiment_path], stdout=subprocess.PIPE, env=env)
+            self.argos_process = subprocess.Popen([argos_path, '-l', f'./log_{self.files_id}.txt', '-e', f'./logerr_{self.files_id}.txt', '-c', argos_foraging_path], stdout=subprocess.PIPE, env=env)
             sleep(3) # wait for argos to start
             
         else:
             # self.argos_process = subprocess.Popen([argos_path, '-z', '-c', argos_experiment_path], stdout=subprocess.PIPE) # При запуске из питона аргос постоянно отправляет одни и те же наблюдения. При запуске аргоса отдельно все работает
-            self.argos_process = subprocess.Popen([argos_path, '-z', '-l', f'./log_{self.files_id}.txt', '-e', f'./logerr_{self.files_id}.txt', '-c', argos_experiment_path], stdout=subprocess.PIPE,env=env)
+            self.argos_process = subprocess.Popen([argos_path, '-z', '-l', f'./log_{self.files_id}.txt', '-e', f'./logerr_{self.files_id}.txt', '-c', argos_foraging_path], stdout=subprocess.PIPE,env=env)
             sleep(.25) # wait for argos to start
             # print("PID"self.argos_process.pid)
             
