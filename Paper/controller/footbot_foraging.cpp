@@ -117,6 +117,9 @@ CFootBotForaging::CFootBotForaging() :
    m_pcProximity(NULL),
    m_pcLight(NULL),
    m_pcGround(NULL),
+   m_pcDistanceA(NULL),
+   m_pcDistanceS(NULL),
+   m_pcCamera(NULL),
    m_pcRNG(NULL) {}
 
 /****************************************/
@@ -130,10 +133,14 @@ void CFootBotForaging::Init(TConfigurationNode& t_node) {
       m_pcWheels    = GetActuator<CCI_DifferentialSteeringActuator>("differential_steering");
       m_pcLEDs      = GetActuator<CCI_LEDsActuator                >("leds"                 );
       m_pcRABA      = GetActuator<CCI_RangeAndBearingActuator     >("range_and_bearing"    );
+      m_pcDistanceA = GetActuator<CCI_FootBotDistanceScannerActuator>("footbot_distance_scanner");
       m_pcRABS      = GetSensor  <CCI_RangeAndBearingSensor       >("range_and_bearing"    );
       m_pcProximity = GetSensor  <CCI_FootBotProximitySensor      >("footbot_proximity"    );
       m_pcLight     = GetSensor  <CCI_FootBotLightSensor          >("footbot_light"        );
       m_pcGround    = GetSensor  <CCI_FootBotMotorGroundSensor    >("footbot_motor_ground" );
+      m_pcPos       = GetSensor  <CCI_PositioningSensor           >("positioning"          );
+      m_pcDistanceS = GetSensor  <CCI_FootBotDistanceScannerSensor>("footbot_distance_scanner");
+      m_pcCamera = GetSensor  <CCI_ColoredBlobOmnidirectionalCameraSensor>("colored_blob_omnidirectional_camera");
       /*
        * Parse XML parameters
        */
@@ -143,6 +150,10 @@ void CFootBotForaging::Init(TConfigurationNode& t_node) {
       m_sWheelTurningParams.Init(GetNode(t_node, "wheel_turning"));
       /* Controller state */
       m_sStateData.Init(GetNode(t_node, "state"));
+      // m_pcDistanceA->Enable();
+      // m_pcDistanceS->Enable();
+      m_pcCamera->Enable();
+      // m_pcCamera->GetReadings();
    }
    catch(CARGoSException& ex) {
       THROW_ARGOSEXCEPTION_NESTED("Error initializing the foot-bot foraging controller for robot \"" << GetId() << "\"", ex);
@@ -234,17 +245,22 @@ void CFootBotForaging::doReceive(){
 /****************************************/
 /****************************************/
 
-std::string CFootBotForaging::SStateData::GetPackage(){
-   return "";
-//   return std::to_string(m_global_x) + ";" + std::to_string(m_global_y);
+std::string CFootBotForaging::GetPackage(){
+  return std::to_string(iter) + ";" // message id
+         + std::to_string(m_sStateData.m_global_x) + ";" + std::to_string(m_sStateData.m_global_y) + ";" // global position
+         + std::to_string(m_sStateData.InNest)+ ";" // is robot in nest
+         + std::to_string(m_sFoodData.HasFoodItem); // is robot carrying food
 }
-
 /****************************************/
 /****************************************/
 
 void CFootBotForaging::ControlStep() {
    iter++;
    doReceive();
+
+   const CCI_PositioningSensor::SReading& sPosRead = m_pcPos->GetReading();
+   m_sStateData.Update(sPosRead.Position.GetX(), sPosRead.Position.GetY());
+
 
    switch(m_sStateData.State) {
       case SStateData::STATE_RESTING: {
@@ -264,7 +280,7 @@ void CFootBotForaging::ControlStep() {
       }
    }
 
-   std::string msg = std::to_string(iter) + ";" + m_sStateData.GetPackage();
+   std::string msg = GetPackage();
    char pack[msg.size() + 1];
    strcpy(pack, msg.c_str());
 

@@ -33,6 +33,10 @@ const short file_size = 128;
 #include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_motor_ground_sensor.h>
 /* Definitions for random number generation */
 #include <argos3/core/utility/math/rng.h>
+#include <argos3/plugins/robots/generic/control_interface/ci_positioning_sensor.h>
+#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_distance_scanner_sensor.h>
+#include <argos3/plugins/robots/foot-bot/control_interface/ci_footbot_distance_scanner_actuator.h>
+#include <argos3/plugins/robots/generic/control_interface/ci_colored_blob_omnidirectional_camera_sensor.h>
 
 /*
  * All the ARGoS stuff in the 'argos' namespace.
@@ -171,10 +175,16 @@ public:
       /* The time spent searching for a place in the nest */
       size_t TimeSearchingForPlaceInNest;
 
+      float m_global_x;
+      float m_global_y;
+
       SStateData();
       void Init(TConfigurationNode& t_node);
       void Reset();
-      std::string GetPackage();
+      inline void Update(float global_x, float global_y){
+         m_global_x = global_x;
+         m_global_y = global_y;
+      }
    };
 
 public:
@@ -210,7 +220,7 @@ public:
     * so the function could have been omitted. It's here just for
     * completeness.
     */
-   virtual void Destroy() {}
+   virtual void Destroy();
 
    /*
     * Returns true if the robot is currently exploring.
@@ -239,6 +249,8 @@ public:
    inline SFoodData& GetFoodData() {
       return m_sFoodData;
    }
+
+   std::string GetPackage();
 
 private:
 
@@ -286,8 +298,6 @@ private:
     */
    void ReturnToNest();
 
-   virtual void Destroy();
-
    enum { max_length = 1024 };
    char m_data[max_length];
 
@@ -303,6 +313,8 @@ private:
    CCI_LEDsActuator* m_pcLEDs;
    /* Pointer to the range and bearing actuator */
    CCI_RangeAndBearingActuator*  m_pcRABA;
+   /* Pointer to the foot-bot distance actuator */
+   CCI_FootBotDistanceScannerActuator* m_pcDistanceA;
    /* Pointer to the range and bearing sensor */
    CCI_RangeAndBearingSensor* m_pcRABS;
    /* Pointer to the foot-bot proximity sensor */
@@ -311,6 +323,12 @@ private:
    CCI_FootBotLightSensor* m_pcLight;
    /* Pointer to the foot-bot motor ground sensor */
    CCI_FootBotMotorGroundSensor* m_pcGround;
+   /* Pointer to the foot-bot position sensor */
+   CCI_PositioningSensor* m_pcPos;
+   /* Pointer to the foot-bot distance sensor */
+   CCI_FootBotDistanceScannerSensor* m_pcDistanceS;
+      /* Pointer to the colored blob omnidirectional camera */
+   CCI_ColoredBlobOmnidirectionalCameraSensor* m_pcCamera;
 
    /* The random number generator */
    CRandom::CRNG* m_pcRNG;

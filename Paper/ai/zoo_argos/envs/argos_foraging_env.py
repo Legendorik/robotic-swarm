@@ -150,17 +150,17 @@ class ArgosForagingEnv(AECEnv):
         # in_msg = self.argos_io.receive_from(agent_id)
         in_msg = self.argos.receive_from(agent_id)
         in_msg = in_msg.split(";")
-        if (len(in_msg) >= 3):
+        # if (len(in_msg) >= 3):
             # get floor color
-            floor = float(in_msg[3].replace('\x00', '').replace(',', '.'))
-            self.previous_observations[agent] = self.observations[agent]
-            self.observations[agent] = np.array([floor])
-            if (np.array_equal(self.previous_observations[agent], self.observations[agent])):
-                self.rewards[agent] = 0
-            else:
-                self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
-        else:
-            self.rewards[agent] = 0
+            # floor = float(in_msg[3].replace('\x00', '').replace(',', '.'))
+            # self.previous_observations[agent] = self.observations[agent]
+            # self.observations[agent] = np.array([floor])
+            # if (np.array_equal(self.previous_observations[agent], self.observations[agent])):
+            #     self.rewards[agent] = 0
+            # else:
+            #     self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
+        # else:
+        self.rewards[agent] = 0
         # action = 0
         # out messages
         heading = (5 * cos(action * pi/8), 5 * sin(action * pi/8))
