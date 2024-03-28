@@ -11,7 +11,7 @@ argos_experiment_path = './argos/footbot-ai.argos'
 argos_foraging_path = './argos/foraging.argos'
 data_fname = '_data_robot_'
 actions_fname = '_actions_robot_'
-file_size = 128
+file_size = 1024
 
 
 class Argos:

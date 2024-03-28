@@ -10,7 +10,7 @@
 #ifndef FOOTBOT_FORAGING_H
 #define FOOTBOT_FORAGING_H
 
-const short file_size = 128;
+const short file_size = 1024;
 
 /*
  * Include some necessary headers.
@@ -175,15 +175,15 @@ public:
       /* The time spent searching for a place in the nest */
       size_t TimeSearchingForPlaceInNest;
 
-      float m_global_x;
-      float m_global_y;
+      float mGlobalX;
+      float mGlobalY;
 
       SStateData();
       void Init(TConfigurationNode& t_node);
       void Reset();
       inline void Update(float global_x, float global_y){
-         m_global_x = global_x;
-         m_global_y = global_y;
+         mGlobalX = global_x;
+         mGlobalY = global_y;
       }
    };
 
@@ -298,7 +298,7 @@ private:
     */
    void ReturnToNest();
 
-   enum { max_length = 1024 };
+   enum { max_length = 512 };
    char m_data[max_length];
 
    void createMappings();

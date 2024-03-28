@@ -171,10 +171,9 @@ void CFootBotForaging::Init(TConfigurationNode& t_node) {
    std::cout << "FILES_ID: " << getenv("FILES_ID") << std::endl;
    files_id = getenv("FILES_ID");
    if (files_id == NULL) {
-    files_id = "1";
+    files_id = "0";
    }
    createMappings();
-
    Reset();
 }
 
@@ -246,10 +245,46 @@ void CFootBotForaging::doReceive(){
 /****************************************/
 
 std::string CFootBotForaging::GetPackage(){
-  return std::to_string(iter) + ";" // message id
-         + std::to_string(m_sStateData.m_global_x) + ";" + std::to_string(m_sStateData.m_global_y) + ";" // global position
-         + std::to_string(m_sStateData.InNest)+ ";" // is robot in nest
-         + std::to_string(m_sFoodData.HasFoodItem); // is robot carrying food
+   
+   std::stringstream package;
+   package << std::fixed << std::setprecision(3);
+   package << iter << ";" // message id
+         << m_sStateData.mGlobalX << ";" << m_sStateData.mGlobalY << ";" // global position
+         << m_sStateData.InNest << ";" // is robot in nest
+         << m_sFoodData.HasFoodItem << ";"; // is robot carrying food
+
+   auto lightReadings = m_pcLight->GetReadings();
+   auto groundReadings = m_pcGround->GetReadings();
+   auto rabReadings = m_pcRABS->GetReadings();
+   auto cameraReadings = m_pcCamera->GetReadings();
+
+   auto rabReadingSize = rabReadings.size();
+   // send RAB sensor data
+   package << rabReadingSize << ";";
+   for (size_t i = 0; i < rabReadingSize; i++)
+   {
+      package << rabReadings[i].Range << ";";
+      package << rabReadings[i].HorizontalBearing.GetValue() << ";";
+      // is robot have food
+      package << rabReadings[i].Data[0] << ";";
+      // is robot see food
+      package << rabReadings[i].Data[1] << ";";
+   }
+
+   auto cameraReadingSize = cameraReadings.BlobList.size();
+   // // send camera sensor data
+   package << cameraReadingSize << ";";
+   for (size_t i = 0; i < cameraReadingSize; i++)
+   {
+      package << cameraReadings.BlobList[i]->Distance << ";";
+      package << cameraReadings.BlobList[i]->Angle.GetValue() << ";";
+      package << cameraReadings.BlobList[i]->Color.GetRed() << ";";
+      package << cameraReadings.BlobList[i]->Color.GetGreen() << ";";
+      package << cameraReadings.BlobList[i]->Color.GetBlue() << ";";
+   }
+
+  return package.str();
+
 }
 /****************************************/
 /****************************************/
@@ -258,9 +293,12 @@ void CFootBotForaging::ControlStep() {
    iter++;
    doReceive();
 
+
    const CCI_PositioningSensor::SReading& sPosRead = m_pcPos->GetReading();
    m_sStateData.Update(sPosRead.Position.GetX(), sPosRead.Position.GetY());
 
+   // m_pcRABA->SetData(0, 0);
+   // m_pcRABA->SetData(1, 0);
 
    switch(m_sStateData.State) {
       case SStateData::STATE_RESTING: {
@@ -279,8 +317,8 @@ void CFootBotForaging::ControlStep() {
          LOGERR << "We can't be here, there's a bug!" << std::endl;
       }
    }
-
    std::string msg = GetPackage();
+   // std::cout << "package size "  << msg.size() << std::endl;
    char pack[msg.size() + 1];
    strcpy(pack, msg.c_str());
 
