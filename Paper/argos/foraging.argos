@@ -123,11 +123,18 @@
            intensity="3.0"
            medium="leds" />
 
+               <light id="light_5"
+           position="0,0,0"
+           orientation="0,0,0"
+           color="yellow"
+           intensity="3.0"
+           medium="leds" />
+
     <distribute>
       <position method="uniform" min="-2,-2,0" max="-1,2,0" />
       <orientation method="uniform" min="0,0,0" max="360,0,0" />
       <entity quantity="2" max_trials="100">
-        <foot-bot id="fb">
+        <foot-bot id="fb" omnidirectional_camera_aperture="89">
           <controller config="ffc" />
         </foot-bot>
       </entity>
