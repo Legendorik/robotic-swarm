@@ -40,42 +40,41 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
       /* Create a new RNG */
       m_pcRNG = CRandom::CreateRNG("argos");
       /* Distribute uniformly the items in the environment */
-      CLEDMedium &cLEDMedium = GetSimulator().GetMedium<CLEDMedium>("leds");
 
+      CLEDMedium &cLEDMedium = GetSimulator().GetMedium<CLEDMedium>("leds");
       for (UInt32 i = 0; i < unFoodItems; ++i)
       {
+               
          m_cFoodPos.push_back(
              CVector2(m_pcRNG->Uniform(m_cForagingArenaSideX),
                       m_pcRNG->Uniform(m_cForagingArenaSideY)));
 
          std::string food_id = "food_" + std::to_string(i);
-         auto pFoodLight = new CLightEntity(food_id, CVector3(m_cFoodPos[i].GetX(), m_cFoodPos[i].GetY(), 0), CColor::BLUE, 3);
-         pFoodLight->SetMedium(cLEDMedium);
-         pFoodLight->SetEnabled(true);
+         // auto pFoodLight = new CLightEntity(food_id, CVector3(m_cFoodPos[i].GetX(), m_cFoodPos[i].GetY(), 0), CColor::BLUE, 3);
+         // pFoodLight->SetMedium(cLEDMedium);
+         // pFoodLight->SetEnabled(true);
          
-         AddEntity(*pFoodLight);
-         std::cout<< pFoodLight->HasMedium()<< std::endl;
-         // CBoxEntity *pcBox = new CBoxEntity(food_id,                                                 // id
-         //                                    CVector3(m_cFoodPos[i].GetX(), m_cFoodPos[i].GetY(), 0), // position
-         //                                    CQuaternion(),                                           // orientation
-         //                                    false,                                                   // movable or not?
-         //                                    CVector3(0.01, 0.01, 0),                                 // size
-         //                                    1);                                                      // mass in kg
+         // AddEntity(*pFoodLight);
+         // cLEDMedium.Update();
+         // std::cout<< pFoodLight->HasMedium()<< std::endl;
+         CBoxEntity *pcBox = new CBoxEntity(food_id,                                                 // id
+                                            CVector3(m_cFoodPos[i].GetX(), m_cFoodPos[i].GetY(), 0), // position
+                                            CQuaternion(),                                           // orientation
+                                            false,                                                   // movable or not?
+                                            CVector3(0.01, 0.01, 0),                                 // size
+                                            1);                                                      // mass in kg
 
-         // // Enable LED management for the box
-         // pcBox->EnableLEDs(cLEDMedium);
-         // // Add LED on top of the box
-         // pcBox->AddLED(CVector3(0, 0, 0), // offset
-         //               CColor::RED);           // color
-         //                        pcBox->AddLED(CVector3(0.01, 0, 0), // offset
-         //               CColor::RED);           // color
-         //                        pcBox->AddLED(CVector3(0, 0.01, 0), // offset
-         //               CColor::RED);           // color
-         //                        pcBox->AddLED(CVector3(0.01, 0.01, 0), // offset
-         //               CColor::RED);           // color
+         pcBox->EnableLEDs(cLEDMedium);
 
-         // // Add the box to the simulation
-         // AddEntity(*pcBox);
+
+
+         // Add LED on top of the box
+         pcBox->AddLED(CVector3(0, 0, 0), // offset
+                       CColor::RED);           // color
+         // Enable LED management for the box
+         pcBox->EnableLEDs(cLEDMedium);
+         // Add the box to the simulation
+         AddEntity(*pcBox);
       }
       /* Get the output file name from XML */
       GetNodeAttribute(tForaging, "output", m_strOutput);
