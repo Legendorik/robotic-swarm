@@ -247,16 +247,18 @@ void CFootBotForaging::doReceive(){
 std::string CFootBotForaging::GetPackage(){
    
    std::stringstream package;
-   package << std::fixed << std::setprecision(3);
+   package << std::fixed << std::setprecision(2);
    package << iter << ";" // message id
          << m_sStateData.mGlobalX << ";" << m_sStateData.mGlobalY << ";" // global position
          << m_sStateData.InNest << ";" // is robot in nest
          << m_sFoodData.HasFoodItem << ";"; // is robot carrying food
 
-   auto lightReadings = m_pcLight->GetReadings();
    auto groundReadings = m_pcGround->GetReadings();
    auto rabReadings = m_pcRABS->GetReadings();
    auto cameraReadings = m_pcCamera->GetReadings();
+
+   auto lightVector = CalculateVectorToLight();
+   package << lightVector.GetX() << ";" << lightVector.GetY() << ";";
 
    auto rabReadingSize = rabReadings.size();
    // send RAB sensor data

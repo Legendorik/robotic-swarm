@@ -2,8 +2,6 @@
 #include <argos3/core/simulator/simulator.h>
 #include <argos3/core/utility/configuration/argos_configuration.h>
 #include <argos3/plugins/robots/foot-bot/simulator/footbot_entity.h>
-#include <argos3/plugins/simulator/entities/light_entity.h>
-#include <argos3/plugins/simulator/entities/box_entity.h>
 #include <argos3/plugins/simulator/media/led_medium.h>
 #include "footbot_foraging.h"
 
@@ -41,40 +39,14 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
       m_pcRNG = CRandom::CreateRNG("argos");
       /* Distribute uniformly the items in the environment */
 
-      CLEDMedium &cLEDMedium = GetSimulator().GetMedium<CLEDMedium>("leds");
       for (UInt32 i = 0; i < unFoodItems; ++i)
       {
-               
+
          m_cFoodPos.push_back(
              CVector2(m_pcRNG->Uniform(m_cForagingArenaSideX),
                       m_pcRNG->Uniform(m_cForagingArenaSideY)));
 
-         std::string food_id = "food_" + std::to_string(i);
-         // auto pFoodLight = new CLightEntity(food_id, CVector3(m_cFoodPos[i].GetX(), m_cFoodPos[i].GetY(), 0), CColor::BLUE, 3);
-         // pFoodLight->SetMedium(cLEDMedium);
-         // pFoodLight->SetEnabled(true);
-         
-         // AddEntity(*pFoodLight);
-         // cLEDMedium.Update();
-         // std::cout<< pFoodLight->HasMedium()<< std::endl;
-         CBoxEntity *pcBox = new CBoxEntity(food_id,                                                 // id
-                                            CVector3(m_cFoodPos[i].GetX(), m_cFoodPos[i].GetY(), 0), // position
-                                            CQuaternion(),                                           // orientation
-                                            false,                                                   // movable or not?
-                                            CVector3(0.01, 0.01, 0),                                 // size
-                                            1);                                                      // mass in kg
-
-         pcBox->EnableLEDs(cLEDMedium);
-
-
-
-         // Add LED on top of the box
-         pcBox->AddLED(CVector3(0, 0, 0), // offset
-                       CColor::RED);           // color
-         // Enable LED management for the box
-         pcBox->EnableLEDs(cLEDMedium);
-         // Add the box to the simulation
-         AddEntity(*pcBox);
+         addLedOnFood(i, true);
       }
       /* Get the output file name from XML */
       GetNodeAttribute(tForaging, "output", m_strOutput);
@@ -110,6 +82,10 @@ void CForagingLoopFunctions::Reset()
    {
       m_cFoodPos[i].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
                         m_pcRNG->Uniform(m_cForagingArenaSideY));
+
+      // removeLedFromFood(i);
+      // addLedOnFood(i, false);
+      moveLedToFood(i);
    }
 }
 
@@ -118,6 +94,11 @@ void CForagingLoopFunctions::Reset()
 
 void CForagingLoopFunctions::Destroy()
 {
+   for (size_t i = 0; i < m_cLeds.size(); i++)
+   {
+      // removeLedFromFood(i);
+   }
+   
    /* Close the file */
    m_cOutput.close();
 }
@@ -184,6 +165,9 @@ void CForagingLoopFunctions::PreStep()
             /* Place a new food item on the ground */
             m_cFoodPos[sFoodData.FoodItemIdx].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
                                                   m_pcRNG->Uniform(m_cForagingArenaSideY));
+            
+            // addLedOnFood(sFoodData.FoodItemIdx, false);
+            moveLedToFood(sFoodData.FoodItemIdx);
             /* Drop the food item */
             sFoodData.HasFoodItem = false;
             sFoodData.FoodItemIdx = 0;
@@ -209,6 +193,8 @@ void CForagingLoopFunctions::PreStep()
                {
                   /* If so, we move that item out of sight */
                   m_cFoodPos[i].Set(100.0f, 100.f);
+                  // removeLedFromFood(sFoodData.FoodItemIdx);
+                  moveLedToFood(i);
                   /* The foot-bot is now carrying an item */
                   sFoodData.HasFoodItem = true;
                   sFoodData.FoodItemIdx = i;
@@ -233,5 +219,65 @@ void CForagingLoopFunctions::PreStep()
 
 /****************************************/
 /****************************************/
+
+void CForagingLoopFunctions::addLedOnFood(int i, bool fromInit)
+{
+   CLEDMedium &cLEDMedium = GetSimulator().GetMedium<CLEDMedium>("leds");
+
+   std::string food_id = "food_" + std::to_string(lastEntityId);
+   // auto pFoodLight = new CLightEntity(food_id, CVector3(m_cFoodPos[i].GetX(), m_cFoodPos[i].GetY(), 0), CColor::BLUE, 3);
+   // pFoodLight->SetMedium(cLEDMedium);
+   // pFoodLight->SetEnabled(true);
+
+   // AddEntity(*pFoodLight);
+   // cLEDMedium.Update();
+   // std::cout<< pFoodLight->HasMedium()<< std::endl;
+   CBoxEntity *pcBox = new CBoxEntity(food_id,                                                 // id
+                                      CVector3(m_cFoodPos[i].GetX(), m_cFoodPos[i].GetY(), 0), // position
+                                      CQuaternion(),                                           // orientation
+                                      false,                                                   // movable or not?
+                                      CVector3(0.01, 0.01, 0),                                 // size
+                                      1);                                                      // mass in kg
+   if (fromInit)
+   {
+      m_cLeds.push_back(pcBox); 
+   }
+   else
+   {
+      m_cLeds[i] = pcBox;
+   }
+
+   pcBox->EnableLEDs(cLEDMedium);
+
+   // Add LED on top of the box
+   pcBox->AddLED(CVector3(0, 0, 0), // offset
+                 CColor::BLUE);     // color
+   // Enable LED management for the box
+   pcBox->EnableLEDs(cLEDMedium);
+   // Add the box to the simulation
+   AddEntity(*pcBox);
+   lastEntityId++;
+}
+
+void CForagingLoopFunctions::removeLedFromFood(int i)
+{
+   CLEDMedium &cLEDMedium = GetSimulator().GetMedium<CLEDMedium>("leds");
+   m_cLeds[i]->DisableLEDs();
+   RemoveEntity(*m_cLeds[i]);
+}
+
+void CForagingLoopFunctions::moveLedToFood(int i)
+{
+   auto x = m_cFoodPos[i].GetX();
+   auto y = m_cFoodPos[i].GetY();
+   if (x > 2.4) {
+      x = 2.4;
+   }
+   if (y > 2.4) {
+      y = 2.4;
+   }
+   MoveEntity(m_cLeds[i]->GetEmbodiedEntity(), CVector3(x, y, 0), CQuaternion());
+
+}
 
 REGISTER_LOOP_FUNCTIONS(CForagingLoopFunctions, "foraging_loop_functions")
