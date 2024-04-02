@@ -96,9 +96,12 @@ class ArgosForagingEnv(AECEnv):
             
             # self.argos_io = ArgosIO(self.num_robots, verbose=False)
         else:
-            self.argos.kill()
-            sleep(.25)
-            self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
+            # self.argos.kill()
+            self.argos.send_to(str(-1) + ";" + "RESET")
+            for i in range(1, self.num_agents):
+                self.argos.send_to(str(-1))
+            sleep(.05)
+            # self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
         self.iter = 0
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
@@ -150,6 +153,8 @@ class ArgosForagingEnv(AECEnv):
         # in_msg = self.argos_io.receive_from(agent_id)
         in_msg = self.argos.receive_from(agent_id)
         in_msg = in_msg.split(";")
+        mapped_observations = BotObservations(in_msg)
+        
         # if (len(in_msg) >= 3):
             # get floor color
             # floor = float(in_msg[3].replace('\x00', '').replace(',', '.'))
@@ -161,12 +166,11 @@ class ArgosForagingEnv(AECEnv):
             #     self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
         # else:
         self.rewards[agent] = 0
-        # action = 0
+        action = 0
         # out messages
-        heading = (5 * cos(action * pi/8), 5 * sin(action * pi/8))
+        velocity = 10
+        heading = (velocity * cos(action * pi/8), velocity * sin(action * pi/8))
         msg = str(self.iter) + ";" + str(heading[0]) + ";" + str(heading[1])
-        # msg = str(action[0]/10.0) + ";" + str(action[1]/10.0)
-        # msg = str(5.0) + ";" + str(5.0)
         # self.argos_io.send_to(msg, agent_id)
         self.argos.send_to(msg, agent_id)
 
@@ -195,3 +199,63 @@ class ArgosForagingEnv(AECEnv):
         self.agent_selection = self._agent_selector.next()
 
         
+class BotObservations:
+    
+    def __init__(self, raw_observations: list[str]) -> None:
+        self.iter = int(raw_observations[0]) if len(raw_observations) > 0 else -1
+        self.xPos = float(raw_observations[1]) if len(raw_observations) > 1 else 0
+        self.yPos = float(raw_observations[2]) if len(raw_observations) > 2 else 0
+        self.inNest = bool(raw_observations[3]) if len(raw_observations) > 3 else False
+        self.hasFood = bool(raw_observations[4]) if len(raw_observations) > 4 else False
+        self.xLight = float(raw_observations[5]) if len(raw_observations) > 5 else 0
+        self.yLight = float(raw_observations[6]) if len(raw_observations) > 6 else 0
+        rabReadingsSize = int(raw_observations[7]) if len(raw_observations) > 7 else 0
+        self.rabReadings = []
+        next_index = 8
+
+        for i in range(rabReadingsSize):
+            if (len(raw_observations) > next_index + 3):
+                self.rabReadings.append(RabReading(
+                    range=float(raw_observations[next_index]),
+                    bearing=float(raw_observations[next_index+1]),
+                    has_food=bool(raw_observations[next_index+2]),
+                    see_food=bool(raw_observations[next_index+3]),
+                ))
+                next_index += 4
+
+        cameraReadingsSize = int(raw_observations[next_index]) if len(raw_observations) > next_index else 0
+        self.cameraReadings = []
+        next_index += 1
+
+        for i in range(cameraReadingsSize):
+            if (len(raw_observations) > next_index + 4):
+                self.cameraReadings.append(CameraReading(
+                    distance=float(raw_observations[next_index]),
+                    angle=float(raw_observations[next_index+1]),
+                    r=int(raw_observations[next_index+2]),
+                    g=int(raw_observations[next_index+3]),
+                    b=int(raw_observations[next_index+4]),
+                ))
+                next_index += 5
+
+
+class RabReading:
+    def __init__(self, range: float, bearing: float, has_food: bool, see_food: bool) -> None:
+        self.range = range
+        self.bearing = bearing
+        self.has_food = has_food
+        self.see_food = see_food
+
+class CameraReading:
+    def __init__(self, distance: float, angle: float, r: int, g: int, b: int) -> None:
+        self.distance = distance
+        self.angle = angle
+        self.r = r
+        self.g = g
+        self.b = b
+
+    def is_blue(self):
+        return self.r == 0 and self.g == 0 and self.b == 255
+    
+    def is_green(self):
+        return self.r == 0 and self.g == 255 and self.b == 0

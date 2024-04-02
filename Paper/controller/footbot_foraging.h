@@ -304,6 +304,7 @@ private:
    void createMappings();
    void doSend(char m_data[max_length], std::size_t length);
    void doReceive();
+   void setRABData();
 
 private:
 

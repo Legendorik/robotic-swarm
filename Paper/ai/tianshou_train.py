@@ -13,6 +13,7 @@ from tianshou.policy import BasePolicy, DQNPolicy, MultiAgentPolicyManager, Rand
 from tianshou.trainer import offpolicy_trainer
 from tianshou.utils.net.common import Net
 from zoo_argos.envs.argos_env import ArgosEnv
+from zoo_argos.envs.argos_foraging_env import ArgosForagingEnv
 from torch.utils.tensorboard import SummaryWriter
 from tianshou.utils import TensorboardLogger
 
@@ -119,7 +120,8 @@ def _get_agents(
 
 def _get_env():
     """This function is needed to provide callables for DummyVectorEnv."""
-    return PettingZooEnv(ArgosEnv(render_mode='no_render'))
+    # return PettingZooEnv(ArgosEnv(render_mode='no_render'))
+    return PettingZooEnv(ArgosForagingEnv(render_mode='no_render'))
 
 
 if __name__ == "__main__":

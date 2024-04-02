@@ -222,6 +222,7 @@ void CForagingLoopFunctions::PreStep()
 
 void CForagingLoopFunctions::addLedOnFood(int i, bool fromInit)
 {
+   
    CLEDMedium &cLEDMedium = GetSimulator().GetMedium<CLEDMedium>("leds");
 
    std::string food_id = "food_" + std::to_string(lastEntityId);

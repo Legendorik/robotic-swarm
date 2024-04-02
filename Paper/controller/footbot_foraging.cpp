@@ -6,11 +6,14 @@
 #include <argos3/core/utility/math/vector2.h>
 /* Logging */
 #include <argos3/core/utility/logging/argos_log.h>
+#include <argos3/core/simulator/simulator.h>
+#include <argos3/core/simulator/loop_functions.h>
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string>
 #include <boost/algorithm/string.hpp>
+
 
 
 /****************************************/
@@ -230,11 +233,20 @@ void CFootBotForaging::doReceive(){
   strncpy(buf, actions_mmap, file_size);
   std::vector<std::string> result;
   boost::split(result, buf, boost::is_any_of(";"));
-  if (result.size() >= 3) {
+  if (!result.empty()) {
     if (last_received_iter != result[0]) {
       last_received_iter = result[0];
       std::cout<< m_id << " RECEIVE: " << buf << std::endl;
-      // SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
+      if (result.size() >= 3) {
+         SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
+      }
+      else if (result.size() >= 2) {
+         if (result[1] == "RESET") {
+            CSimulator &cSimulator = CSimulator::GetInstance();
+            cSimulator.Reset();
+         }
+      }
+      
     }
 
   }
@@ -299,32 +311,51 @@ void CFootBotForaging::ControlStep() {
    const CCI_PositioningSensor::SReading& sPosRead = m_pcPos->GetReading();
    m_sStateData.Update(sPosRead.Position.GetX(), sPosRead.Position.GetY());
 
-   // m_pcRABA->SetData(0, 0);
-   // m_pcRABA->SetData(1, 0);
+   setRABData();
+   UpdateState();
 
-   switch(m_sStateData.State) {
-      case SStateData::STATE_RESTING: {
-         Rest();
-         break;
-      }
-      case SStateData::STATE_EXPLORING: {
-         Explore();
-         break;
-      }
-      case SStateData::STATE_RETURN_TO_NEST: {
-         ReturnToNest();
-         break;
-      }
-      default: {
-         LOGERR << "We can't be here, there's a bug!" << std::endl;
-      }
-   }
+   // switch(m_sStateData.State) {
+   //    case SStateData::STATE_RESTING: {
+   //       Rest();
+   //       break;
+   //    }
+   //    case SStateData::STATE_EXPLORING: {
+   //       Explore();
+   //       break;
+   //    }
+   //    case SStateData::STATE_RETURN_TO_NEST: {
+   //       ReturnToNest();
+   //       break;
+   //    }
+   //    default: {
+   //       LOGERR << "We can't be here, there's a bug!" << std::endl;
+   //    }
+   // }
    std::string msg = GetPackage();
    // std::cout << "package size "  << msg.size() << std::endl;
    char pack[msg.size() + 1];
    strcpy(pack, msg.c_str());
 
    doSend(pack, sizeof(pack));
+}
+
+void CFootBotForaging::setRABData() {
+
+   m_pcRABA->SetData(0, m_sFoodData.HasFoodItem);
+   auto cameraReadings = m_pcCamera->GetReadings();
+   bool seeFood = false;
+
+   for (size_t i = 0; i < cameraReadings.BlobList.size(); i++)
+   {
+      auto blob = cameraReadings.BlobList[i];
+      if (blob->Color.GetBlue() == 255 && blob->Color.GetGreen() == 0 && blob->Color.GetRed() == 0) {
+         seeFood = true;
+         break;
+      }
+   }
+   m_pcRABA->SetData(1, seeFood);
+
+
 }
 
 /****************************************/
@@ -337,7 +368,8 @@ void CFootBotForaging::Reset() {
    /* Reset food data */
    m_sFoodData.Reset();
    /* Set LED color */
-   m_pcLEDs->SetAllColors(CColor::RED);
+   // m_pcLEDs->SetAllColors(CColor::RED);
+   m_pcLEDs->SetAllColors(CColor::GREEN);
    /* Clear up the last exploration result */
    m_eLastExplorationResult = LAST_EXPLORATION_NONE;
    m_pcRABA->ClearData();
