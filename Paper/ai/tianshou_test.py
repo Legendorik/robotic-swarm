@@ -4,11 +4,12 @@ from tianshou.data import Collector
 from tianshou.env import DummyVectorEnv, PettingZooEnv
 from tianshou_train import _get_agents, get_args
 from zoo_argos.envs.argos_env import ArgosEnv
+from zoo_argos.envs.argos_foraging_env import ArgosForagingEnv
 
 
 def get_env():
     """This function is needed to provide callables for DummyVectorEnv."""
-    return PettingZooEnv(ArgosEnv(render_mode='human'))
+    return PettingZooEnv(ArgosForagingEnv(render_mode='human', verbose=False))
 
 # ======== a test function that tests a pre-trained agent ======
 def watch(args: argparse.Namespace = get_args(watch = True),) -> None:

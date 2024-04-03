@@ -1,3 +1,4 @@
+from enum import Enum
 from math import cos, pi, sin
 from time import sleep
 import gymnasium as gym
@@ -9,14 +10,30 @@ from pettingzoo import AECEnv
 from pettingzoo.utils import agent_selector, wrappers
 import functools
 
+class State(Enum):
+
+    MOVE = 1
+    BUMP = 2
+    PICK = 3
+    DROP = 4
+
+
+REWARD_MAP = {
+    State.MOVE: -1,
+    State.BUMP: -10,
+    State.PICK: 100,
+    State.DROP: 300,
+}
+
 class ArgosForagingEnv(AECEnv):
     metadata = {'render.modes': ['human', 'no_render'], "name": "ArgosEnv"}
 
-    def __init__(self, render_mode='human'):
+    def __init__(self, render_mode='human', verbose = None):
         # initialize and run argos
         self.num_robots = 2
         self.argos = None
         self.argos_io = None
+        self.verbose = verbose if verbose != None else render_mode == 'human'
 
         self.possible_agents = ["robot_" + str(r) for r in range(self.num_robots)]
         # optional: a mapping between agent name and ID
@@ -29,8 +46,19 @@ class ArgosForagingEnv(AECEnv):
             # agent: spaces.Box(np.array([0, 0]), np.array([+50, +50]), shape=(2,)) for agent in self.possible_agents
             agent: spaces.Discrete(9) for agent in self.possible_agents
         }
+        # self._observation_spaces = {
+        #     agent: spaces.Box(0, 256, shape=(1,)) for agent in self.possible_agents
+        # }
+
+
         self._observation_spaces = {
-            agent: spaces.Box(0, 256, shape=(1,)) for agent in self.possible_agents
+            agent: spaces.flatten_space(spaces.Dict({
+                "light_vector": spaces.Box(-10, 10, shape=(2,), dtype=float), 
+                "in_nest": spaces.Discrete(1),
+                "has_food": spaces.Discrete(1),
+                "rab_readings": spaces.Box(-10, 5000, (self.num_robots -1, 4), dtype=float),
+                "camera_readings": spaces.Box(-10, 5000, (12, 4), dtype=float),
+            })) for agent in self.possible_agents
         }
 
         self.render_mode = render_mode
@@ -92,13 +120,13 @@ class ArgosForagingEnv(AECEnv):
         """
         
         if (self.argos is None):
-            self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
+            self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.verbose)
             
             # self.argos_io = ArgosIO(self.num_robots, verbose=False)
         else:
             # self.argos.kill()
             self.argos.send_to(str(-1) + ";" + "RESET")
-            for i in range(1, self.num_agents):
+            for i in range(1, self.num_robots):
                 self.argos.send_to(str(-1))
             sleep(.05)
             # self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
@@ -111,8 +139,8 @@ class ArgosForagingEnv(AECEnv):
         self.infos = {agent: {} for agent in self.agents}
         self.state = {agent: None for agent in self.agents}
 
-        self.observations = {agent: np.array([0]) for agent in self.agents}
-        self.previous_observations = {agent: np.array([0]) for agent in self.agents}
+        self.observations = {agent: BotObservations([]).flatten_observations() for agent in self.agents}
+        self.previous_observations = {agent: BotObservations([]) for agent in self.agents}
 
         self.game_over = False
 
@@ -121,12 +149,6 @@ class ArgosForagingEnv(AECEnv):
         """
         self._agent_selector = agent_selector(self.agents)
         self.agent_selection = self._agent_selector.next()
-
-    def get_observation_and_mask(self, obs):
-        return {"observation": obs, }#"action_mask": self.get_action_mask()}
-    
-    def get_action_mask(self):
-        return [[1, 1], [1, 1]]
 
     def step(self, action):
         self.iter = self.iter + 1
@@ -155,18 +177,26 @@ class ArgosForagingEnv(AECEnv):
         in_msg = in_msg.split(";")
         mapped_observations = BotObservations(in_msg)
         
-        # if (len(in_msg) >= 3):
-            # get floor color
-            # floor = float(in_msg[3].replace('\x00', '').replace(',', '.'))
-            # self.previous_observations[agent] = self.observations[agent]
-            # self.observations[agent] = np.array([floor])
-            # if (np.array_equal(self.previous_observations[agent], self.observations[agent])):
-            #     self.rewards[agent] = 0
-            # else:
-            #     self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
-        # else:
-        self.rewards[agent] = 0
-        action = 0
+        if (mapped_observations.isValid):
+
+            
+            self.observations[agent] = mapped_observations.flatten_observations()
+            if (self.previous_observations[agent] == mapped_observations):
+                self.rewards[agent] = 0
+                # print(self.iter,"ALERT SOME FUCK UP ")
+            else:
+                if (self.previous_observations[agent].hasFood and not mapped_observations.hasFood):
+                    self.rewards[agent] = REWARD_MAP[State.DROP]
+                elif (not self.previous_observations[agent].hasFood and mapped_observations.hasFood):
+                    self.rewards[agent] = REWARD_MAP[State.PICK]
+                else:
+                    self.rewards[agent] = REWARD_MAP[State.MOVE]
+                # self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
+        else:
+            self.rewards[agent] = 0
+            action = 0
+
+        self.previous_observations[agent] = mapped_observations
         # out messages
         velocity = 10
         heading = (velocity * cos(action * pi/8), velocity * sin(action * pi/8))
@@ -174,18 +204,18 @@ class ArgosForagingEnv(AECEnv):
         # self.argos_io.send_to(msg, agent_id)
         self.argos.send_to(msg, agent_id)
 
-        #print("action: ", action)
+        # print(self.iter, "; REWARD: ", self.rewards[agent])
 
-        if (self.iter % 199 == 0 or self.iter % 199 == 1 ): 
-            print(self.iter, "; AGENT: ", agent, "  IN MESSAGE: ", in_msg, "  OUT MESSAGE: ", msg, " REWARD: ", self.rewards[agent], " CUMULATIVE REWARD: ", self._cumulative_rewards[agent] ) 
+        # if (self.iter % 199 == 0 or self.iter % 199 == 1 ): 
+        #     print(self.iter, "; AGENT: ", agent, "  IN MESSAGE: ", in_msg, "  OUT MESSAGE: ", msg, " REWARD: ", self.rewards[agent], " CUMULATIVE REWARD: ", self._cumulative_rewards[agent] ) 
 
-        if (self._cumulative_rewards[agent] < -10):
+        if (self._cumulative_rewards[agent] < -300):
             self.truncations[agent] = True
             self.game_over = True
         
-        if (self.iter > 2000):
-            self.truncations[agent] = True
-            self.game_over = True
+        # if (self.iter > 2000):
+        #     self.truncations[agent] = True
+        #     self.game_over = True
 
         if (self.game_over):
             self.terminations[agent] = True
@@ -202,11 +232,12 @@ class ArgosForagingEnv(AECEnv):
 class BotObservations:
     
     def __init__(self, raw_observations: list[str]) -> None:
+        self.isValid = len(raw_observations) >= 7
         self.iter = int(raw_observations[0]) if len(raw_observations) > 0 else -1
         self.xPos = float(raw_observations[1]) if len(raw_observations) > 1 else 0
         self.yPos = float(raw_observations[2]) if len(raw_observations) > 2 else 0
-        self.inNest = bool(raw_observations[3]) if len(raw_observations) > 3 else False
-        self.hasFood = bool(raw_observations[4]) if len(raw_observations) > 4 else False
+        self.inNest = bool(int(raw_observations[3])) if len(raw_observations) > 3 else False
+        self.hasFood = bool(int(raw_observations[4])) if len(raw_observations) > 4 else False
         self.xLight = float(raw_observations[5]) if len(raw_observations) > 5 else 0
         self.yLight = float(raw_observations[6]) if len(raw_observations) > 6 else 0
         rabReadingsSize = int(raw_observations[7]) if len(raw_observations) > 7 else 0
@@ -238,6 +269,45 @@ class BotObservations:
                 ))
                 next_index += 5
 
+    def flatten_observations(self):
+        return np.concatenate([ [self.xLight, self.yLight, int(self.inNest), int(self.hasFood)], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
+    
+    def get_max_len_rab_readings(self):
+        num_robots = 2 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        result = []
+        for i in range(len(self.rabReadings)):
+            result.append(self.rabReadings[i].flatten_observations())
+        for i in range(num_robots - 1 - len(result)):
+            result.append(RabReading(0,0,0,0).flatten_observations())
+        return np.concatenate(result)
+    
+    def get_max_len_camera_readings(self):
+        max_len = 12
+        result = []
+        for i in range(len(self.cameraReadings)):
+            if (self.cameraReadings[i].is_blue()):
+                result.append(self.cameraReadings[i].flatten_observations())
+        for i in range(len(self.cameraReadings)):
+            if (not self.cameraReadings[i].is_blue() and len(result) < max_len):
+                result.append(self.cameraReadings[i].flatten_observations())
+        for i in range(max_len - len(result)):
+            result.append(CameraReading(0,0,0,0,0).flatten_observations())
+        return np.concatenate(result)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BotObservations):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+        return self.xPos == other.xPos and \
+               self.yPos == other.yPos and \
+               self.inNest == other.inNest and \
+               self.hasFood == other.hasFood and \
+               self.xLight == other.xLight and \
+               self.yLight == other.yLight and \
+               self.rabReadings == other.rabReadings and \
+               self.cameraReadings == other.cameraReadings
+                                       
+
 
 class RabReading:
     def __init__(self, range: float, bearing: float, has_food: bool, see_food: bool) -> None:
@@ -246,6 +316,18 @@ class RabReading:
         self.has_food = has_food
         self.see_food = see_food
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, RabReading):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+        return self.range == other.range and \
+               self.bearing == other.bearing and \
+               self.has_food == other.has_food and \
+               self.see_food == other.see_food
+    
+    def flatten_observations(self):
+        return np.array([self.range, self.bearing, self.has_food, self.see_food])
+
 class CameraReading:
     def __init__(self, distance: float, angle: float, r: int, g: int, b: int) -> None:
         self.distance = distance
@@ -253,6 +335,19 @@ class CameraReading:
         self.r = r
         self.g = g
         self.b = b
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CameraReading):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+        return self.distance == other.distance and \
+               self.angle == other.angle and \
+               self.r == other.r and \
+               self.g == other.g and \
+               self.b == other.b
+    
+    def flatten_observations(self):
+        return np.array([self.distance, self.angle, int(self.is_blue()), int(self.is_green())])
 
     def is_blue(self):
         return self.r == 0 and self.g == 0 and self.b == 255

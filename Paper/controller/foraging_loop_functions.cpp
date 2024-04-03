@@ -48,11 +48,11 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
          addLedOnFood(i, true);
       }
-      /* Get the output file name from XML */
-      GetNodeAttribute(tForaging, "output", m_strOutput);
-      /* Open the file, erasing its contents */
-      m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
-      m_cOutput << "# clock\twalking\tresting\tcollected_food\tenergy" << std::endl;
+      // /* Get the output file name from XML */
+      // GetNodeAttribute(tForaging, "output", m_strOutput);
+      // /* Open the file, erasing its contents */
+      // m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
+      // m_cOutput << "# clock\twalking\tresting\tcollected_food\tenergy" << std::endl;
       /* Get energy gain per item collected */
       GetNodeAttribute(tForaging, "energy_per_item", m_unEnergyPerFoodItem);
       /* Get energy loss per walking robot */

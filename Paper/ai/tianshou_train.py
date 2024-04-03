@@ -31,20 +31,20 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     parser.add_argument('--target-update-freq', type=int, default=320)
     parser.add_argument('--epoch', type=int, default=50)
     parser.add_argument('--step-per-epoch', type=int, default=1000) #100
-    parser.add_argument('--step-per-collect', type=int, default=10) #50
+    parser.add_argument('--step-per-collect', type=int, default=50) #10 #50
     parser.add_argument('--update-per-step', type=float, default=0.1)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument(
         '--hidden-sizes', type=int, nargs='*', default=[128, 128, 128, 128]
     )
-    parser.add_argument('--training-num', type=int, default=1) #10
-    parser.add_argument('--test-num', type=int, default=1) #10
+    parser.add_argument('--training-num', type=int, default=10) #10
+    parser.add_argument('--test-num', type=int, default=10) #10
     parser.add_argument('--logdir', type=str, default='log')
     parser.add_argument('--render', type=float, default=0.05)
     parser.add_argument(
         '--win-condition',
         type=float,
-        default=10,
+        default=1500,
     )
     parser.add_argument(
         '--watch',
