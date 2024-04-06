@@ -6,12 +6,18 @@ env = ArgosForagingEnv(render_mode='human')
 # env = ArgosEnv(render_mode='human')
 env.reset()
 
+# with open("myfile.txt", "r") as file1:
+#     actions_history = file1.read()
+# actions_history = actions_history.split(",")
+# actions_history = list(map(int, actions_history))
+
 start_time = time()
 cur_time = time()
 iter = 0
 for agent in env.agent_iter(max_iter=2000):
     if (iter == 2):
         start_time = time()
+    # action_from_history = actions_history[iter]
     iter += 1
     cur_time = time()
     diff_time = cur_time - start_time

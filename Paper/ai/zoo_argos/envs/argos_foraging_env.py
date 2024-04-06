@@ -1,5 +1,6 @@
 from enum import Enum
 from math import cos, pi, sin
+import math
 from time import sleep
 import gymnasium as gym
 import numpy as np
@@ -16,13 +17,17 @@ class State(Enum):
     BUMP = 2
     PICK = 3
     DROP = 4
+    GETTING_CLOSE = 5
+    GETTING_CLOSE_TO_NEST = 6
 
 
 REWARD_MAP = {
     State.MOVE: -1,
-    State.BUMP: -10,
+    State.BUMP: -15,
     State.PICK: 100,
     State.DROP: 300,
+    State.GETTING_CLOSE: 1,
+    State.GETTING_CLOSE_TO_NEST: 1,
 }
 
 class ArgosForagingEnv(AECEnv):
@@ -34,6 +39,7 @@ class ArgosForagingEnv(AECEnv):
         self.argos = None
         self.argos_io = None
         self.verbose = verbose if verbose != None else render_mode == 'human'
+        # self.actions_history = []
 
         self.possible_agents = ["robot_" + str(r) for r in range(self.num_robots)]
         # optional: a mapping between agent name and ID
@@ -56,6 +62,8 @@ class ArgosForagingEnv(AECEnv):
                 "light_vector": spaces.Box(-10, 10, shape=(2,), dtype=float), 
                 "in_nest": spaces.Discrete(1),
                 "has_food": spaces.Discrete(1),
+                "prox_vector": spaces.Box(-10, 10, shape=(2,), dtype=float), 
+                "is_collision": spaces.Discrete(1),
                 "rab_readings": spaces.Box(-10, 5000, (self.num_robots -1, 4), dtype=float),
                 "camera_readings": spaces.Box(-10, 5000, (12, 4), dtype=float),
             })) for agent in self.possible_agents
@@ -130,6 +138,8 @@ class ArgosForagingEnv(AECEnv):
                 self.argos.send_to(str(-1))
             sleep(.05)
             # self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
+
+        # self.actions_history = []
         self.iter = 0
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
@@ -151,6 +161,7 @@ class ArgosForagingEnv(AECEnv):
         self.agent_selection = self._agent_selector.next()
 
     def step(self, action):
+        # self.actions_history.append(action)
         self.iter = self.iter + 1
         agent = self.agent_selection
         agent_id = self.agent_name_mapping[agent]
@@ -189,6 +200,12 @@ class ArgosForagingEnv(AECEnv):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
                 elif (not self.previous_observations[agent].hasFood and mapped_observations.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.PICK]
+                # elif (mapped_observations.isCollision):
+                #     self.rewards[agent] = REWARD_MAP[State.BUMP]
+                # elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
+                # elif (mapped_observations.hasFood and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
+                #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
                 else:
                     self.rewards[agent] = REWARD_MAP[State.MOVE]
                 # self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
@@ -213,12 +230,16 @@ class ArgosForagingEnv(AECEnv):
             self.truncations[agent] = True
             self.game_over = True
         
-        # if (self.iter > 2000):
-        #     self.truncations[agent] = True
-        #     self.game_over = True
+        if (self.iter > 2000):
+            self.truncations[agent] = True
+            self.game_over = True
 
         if (self.game_over):
             self.terminations[agent] = True
+            # if self._cumulative_rewards[agent] > 800:
+            #     with open("myfile.txt", "w") as file1:
+            #         file1.write(",".join(map(str, self.actions_history)))
+            #         print("THE DEED IS DONE!")
 
         if self._agent_selector.is_last():
             self._accumulate_rewards()
@@ -232,45 +253,57 @@ class ArgosForagingEnv(AECEnv):
 class BotObservations:
     
     def __init__(self, raw_observations: list[str]) -> None:
-        self.isValid = len(raw_observations) >= 7
-        self.iter = int(raw_observations[0]) if len(raw_observations) > 0 else -1
-        self.xPos = float(raw_observations[1]) if len(raw_observations) > 1 else 0
-        self.yPos = float(raw_observations[2]) if len(raw_observations) > 2 else 0
-        self.inNest = bool(int(raw_observations[3])) if len(raw_observations) > 3 else False
-        self.hasFood = bool(int(raw_observations[4])) if len(raw_observations) > 4 else False
-        self.xLight = float(raw_observations[5]) if len(raw_observations) > 5 else 0
-        self.yLight = float(raw_observations[6]) if len(raw_observations) > 6 else 0
-        rabReadingsSize = int(raw_observations[7]) if len(raw_observations) > 7 else 0
-        self.rabReadings = []
-        next_index = 8
+        self.isValid = False
+        try:
+            # for e in raw_observations:
+            #     if e.find('\\') != -1 or e.find('x') != -1 or e.find('00') != -1:
+            #         print("OOOOOOOOF SOMETHING IS GOING OFF")
+            self.iter = int(raw_observations[0]) if len(raw_observations) > 0 else -1
+            self.xPos = float(raw_observations[1]) if len(raw_observations) > 1 else 0
+            self.yPos = float(raw_observations[2]) if len(raw_observations) > 2 else 0
+            self.inNest = bool(int(raw_observations[3])) if len(raw_observations) > 3 else False
+            self.hasFood = bool(int(raw_observations[4])) if len(raw_observations) > 4 else False
+            self.xLight = float(raw_observations[5]) if len(raw_observations) > 5 else 0
+            self.yLight = float(raw_observations[6]) if len(raw_observations) > 6 else 0
+            self.xProx = float(raw_observations[7]) if len(raw_observations) > 7 else 0
+            self.yProx = float(raw_observations[8]) if len(raw_observations) > 8 else 0
+            self.isCollision = bool(int(raw_observations[9])) if len(raw_observations) > 9 else False
+            rabReadingsSize = int(raw_observations[10]) if len(raw_observations) > 10 else 0
+            self.rabReadings = []
+            next_index = 11
 
-        for i in range(rabReadingsSize):
-            if (len(raw_observations) > next_index + 3):
-                self.rabReadings.append(RabReading(
-                    range=float(raw_observations[next_index]),
-                    bearing=float(raw_observations[next_index+1]),
-                    has_food=bool(raw_observations[next_index+2]),
-                    see_food=bool(raw_observations[next_index+3]),
-                ))
-                next_index += 4
+            for i in range(rabReadingsSize):
+                if (len(raw_observations) > next_index + 3):
+                    self.rabReadings.append(RabReading(
+                        range=float(raw_observations[next_index]),
+                        bearing=float(raw_observations[next_index+1]),
+                        has_food=bool(raw_observations[next_index+2]),
+                        see_food=bool(raw_observations[next_index+3]),
+                    ))
+                    next_index += 4
 
-        cameraReadingsSize = int(raw_observations[next_index]) if len(raw_observations) > next_index else 0
-        self.cameraReadings = []
-        next_index += 1
+            cameraReadingsSize = int(raw_observations[next_index]) if len(raw_observations) > next_index else 0
+            self.cameraReadings = []
+            next_index += 1
 
-        for i in range(cameraReadingsSize):
-            if (len(raw_observations) > next_index + 4):
-                self.cameraReadings.append(CameraReading(
-                    distance=float(raw_observations[next_index]),
-                    angle=float(raw_observations[next_index+1]),
-                    r=int(raw_observations[next_index+2]),
-                    g=int(raw_observations[next_index+3]),
-                    b=int(raw_observations[next_index+4]),
-                ))
-                next_index += 5
+            for i in range(cameraReadingsSize):
+                if (len(raw_observations) > next_index + 4):
+                    self.cameraReadings.append(CameraReading(
+                        distance=float(raw_observations[next_index]),
+                        angle=float(raw_observations[next_index+1]),
+                        r=int(raw_observations[next_index+2]),
+                        g=int(raw_observations[next_index+3]),
+                        b=int(raw_observations[next_index+4]),
+                    ))
+                    next_index += 5
+            self.isValid = True
+        except:
+            self.isValid = False
+            print("ALERT: Failed to parse observations")
+            
 
     def flatten_observations(self):
-        return np.concatenate([ [self.xLight, self.yLight, int(self.inNest), int(self.hasFood)], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
+        return np.concatenate([ [self.xLight, self.yLight, int(self.inNest), int(self.hasFood), self.xProx, self.yProx, self.isCollision], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
     
     def get_max_len_rab_readings(self):
         num_robots = 2 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -293,6 +326,23 @@ class BotObservations:
         for i in range(max_len - len(result)):
             result.append(CameraReading(0,0,0,0,0).flatten_observations())
         return np.concatenate(result)
+
+    def is_food_getting_closer(self, other):
+        blueReadings = list(filter(lambda e: e.is_blue(), self.cameraReadings))
+        otherBlueReadings = list(filter(lambda e: e.is_blue(), other.cameraReadings))
+        if (len(blueReadings) == 0): 
+            return False
+        if (len(otherBlueReadings) == 0):
+            return True
+        
+        for e in blueReadings:
+            for ee in otherBlueReadings:
+                if e.distance < ee.distance:
+                    return True
+        return False
+    
+    def light_vector_length(self):
+        return math.sqrt(self.xLight * self.xLight + self.yLight * self.yLight)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BotObservations):

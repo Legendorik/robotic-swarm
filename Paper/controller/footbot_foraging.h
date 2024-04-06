@@ -267,6 +267,9 @@ private:
     * phototaxis and antiphototaxis.
     */
    CVector2 CalculateVectorToLight();
+   CVector2 CalculateTrueVectorToLight();
+   CVector2 CalculateProximityVector();
+   bool isCollision(CVector2 proxVector);
 
    /*
     * Calculates the diffusion vector. If there is a close obstacle,

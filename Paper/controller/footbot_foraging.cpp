@@ -219,7 +219,7 @@ void CFootBotForaging::doSend(char data[max_length], std::size_t length){
     buf[i] = '\0';
   }
   if (iter % 15 == 0)
-    std::cout<< m_id << " SEND: " << buf << std::endl;
+   //  std::cout<< m_id << " SEND: " << buf << std::endl;
   
   strcpy(data_mmap, buf);
 }
@@ -236,7 +236,8 @@ void CFootBotForaging::doReceive(){
   if (!result.empty()) {
     if (last_received_iter != result[0]) {
       last_received_iter = result[0];
-      std::cout<< m_id << " RECEIVE: " << buf << std::endl;
+
+      // std::cout<< m_id << " RECEIVE: " << buf << std::endl;
       if (result.size() >= 3) {
          SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
       }
@@ -269,8 +270,12 @@ std::string CFootBotForaging::GetPackage(){
    auto rabReadings = m_pcRABS->GetReadings();
    auto cameraReadings = m_pcCamera->GetReadings();
 
-   auto lightVector = CalculateVectorToLight();
+   auto lightVector = CalculateTrueVectorToLight();
    package << lightVector.GetX() << ";" << lightVector.GetY() << ";";
+   auto proxVector = CalculateProximityVector();
+   package << proxVector.GetX() << ";" << proxVector.GetY() << ";";
+   auto isCollision = CFootBotForaging::isCollision(proxVector);
+   package << isCollision << ";";
 
    auto rabReadingSize = rabReadings.size();
    // send RAB sensor data
@@ -425,6 +430,42 @@ CVector2 CFootBotForaging::CalculateVectorToLight() {
    }
 }
 
+CVector2 CFootBotForaging::CalculateTrueVectorToLight() {
+   /* Get readings from light sensor */
+   const CCI_FootBotLightSensor::TReadings& tLightReads = m_pcLight->GetReadings();
+   /* Sum them together */
+   CVector2 cAccumulator;
+   for(size_t i = 0; i < tLightReads.size(); ++i) {
+      cAccumulator += CVector2(tLightReads[i].Value, tLightReads[i].Angle);
+   }
+   /* If the light was perceived, return the vector */
+   if(cAccumulator.Length() > 0.0f) {
+      return CVector2(cAccumulator.Length(), cAccumulator.Angle());
+   }
+   /* Otherwise, return zero */
+   else {
+      return CVector2();
+   }
+}
+
+CVector2 CFootBotForaging::CalculateProximityVector() {
+   /* Get readings from proximity sensor */
+   const CCI_FootBotProximitySensor::TReadings& tProxReads = m_pcProximity->GetReadings();
+   /* Sum them together */
+   CVector2 cDiffusionVector = CVector2();
+   for(size_t i = 0; i < tProxReads.size(); ++i) {
+      cDiffusionVector += CVector2(tProxReads[i].Value, tProxReads[i].Angle);
+   }
+
+   return cDiffusionVector;
+}
+
+bool CFootBotForaging::isCollision(CVector2 proxVector) {
+   if (proxVector.Length() > 0.9) {
+      return true;
+   }
+   return false;
+}
 /****************************************/
 /****************************************/
 

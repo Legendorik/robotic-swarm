@@ -44,7 +44,7 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     parser.add_argument(
         '--win-condition',
         type=float,
-        default=1500,
+        default=2000,
     )
     parser.add_argument(
         '--watch',
