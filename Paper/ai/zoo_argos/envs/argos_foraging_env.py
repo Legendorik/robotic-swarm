@@ -39,7 +39,8 @@ class ArgosForagingEnv(AECEnv):
         self.argos = None
         self.argos_io = None
         self.verbose = verbose if verbose != None else render_mode == 'human'
-        # self.actions_history = []
+        self.actions_history = {"robot_0": [], "robot_1": []}
+        self.obs_history = {"robot_0": [], "robot_1": []}
 
         self.possible_agents = ["robot_" + str(r) for r in range(self.num_robots)]
         # optional: a mapping between agent name and ID
@@ -135,11 +136,12 @@ class ArgosForagingEnv(AECEnv):
             # self.argos.kill()
             self.argos.send_to(str(-1) + ";" + "RESET")
             for i in range(1, self.num_robots):
-                self.argos.send_to(str(-1))
+                self.argos.send_to(str(-1)+ ";" + "RESET")
             sleep(.05)
             # self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
 
-        # self.actions_history = []
+        self.actions_history = {"robot_0": [], "robot_1": []}
+        self.obs_history = {"robot_0": [], "robot_1": []}
         self.iter = 0
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
@@ -161,9 +163,11 @@ class ArgosForagingEnv(AECEnv):
         self.agent_selection = self._agent_selector.next()
 
     def step(self, action):
-        # self.actions_history.append(action)
+        
+        
         self.iter = self.iter + 1
         agent = self.agent_selection
+        self.actions_history[agent].append(f"{self.iter}: {action}")
         agent_id = self.agent_name_mapping[agent]
         if (
             self.terminations[self.agent_selection]
@@ -189,7 +193,7 @@ class ArgosForagingEnv(AECEnv):
         mapped_observations = BotObservations(in_msg)
         
         if (mapped_observations.isValid):
-
+            self.obs_history[agent].append(f"{mapped_observations.iter}: {mapped_observations.xPos}; {mapped_observations.yPos}")
             
             self.observations[agent] = mapped_observations.flatten_observations()
             if (self.previous_observations[agent] == mapped_observations):
@@ -236,10 +240,17 @@ class ArgosForagingEnv(AECEnv):
 
         if (self.game_over):
             self.terminations[agent] = True
-            # if self._cumulative_rewards[agent] > 800:
-            #     with open("myfile.txt", "w") as file1:
-            #         file1.write(",".join(map(str, self.actions_history)))
-            #         print("THE DEED IS DONE!")
+            if self._cumulative_rewards[agent] > 800:
+                with open(f"robot_0_myfile.txt", "w") as file1:
+                    file1.write("\n".join(map(str, self.actions_history['robot_0'])))
+                    print("DONE!")
+                with open(f"robot_0_myfileobs.txt", "w") as file1:
+                    file1.write("\n".join(map(str, self.obs_history['robot_0'])))
+
+                with open(f"robot_1_myfile.txt", "w") as file1:
+                    file1.write("\n".join(map(str, self.actions_history['robot_1'])))
+                with open(f"robot_1_myfileobs.txt", "w") as file1:
+                    file1.write("\n".join(map(str, self.obs_history['robot_1'])))
 
         if self._agent_selector.is_last():
             self._accumulate_rewards()

@@ -57,6 +57,70 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
       GetNodeAttribute(tForaging, "energy_per_item", m_unEnergyPerFoodItem);
       /* Get energy loss per walking robot */
       GetNodeAttribute(tForaging, "energy_per_walking_robot", m_unEnergyPerWalkingRobot);
+
+
+
+         // CBoxEntity *box1 = new CBoxEntity("temp1",                                                 // id
+         //                              CVector3(1.87, -1.87, 0), // position
+         //                              CQuaternion(),                                           // orientation
+         //                              false,                                                   // movable or not?
+         //                              CVector3(0.01, 0.01, 0.1),                                 // size
+         //                              1);                                                      // mass in kg
+
+
+
+         // AddEntity(*box1);
+         //          CBoxEntity *box2 = new CBoxEntity("temp2",                                                 // id
+         //                              CVector3(1.69, -1.55, 0), // position
+         //                              CQuaternion(),                                           // orientation
+         //                              false,                                                   // movable or not?
+         //                              CVector3(0.01, 0.01, 0.1),                                 // size
+         //                              1);                                                      // mass in kg
+
+
+
+         // AddEntity(*box2);
+         //                   CBoxEntity *box3 = new CBoxEntity("temp3",                                                 // id
+         //                              CVector3(1.55, -1.29, 0), // position
+         //                              CQuaternion(),                                           // orientation
+         //                              false,                                                   // movable or not?
+         //                              CVector3(0.01, 0.01, 0.1),                                 // size
+         //                              1);                                                      // mass in kg
+
+
+
+         // AddEntity(*box3);
+         //                            CBoxEntity *box4 = new CBoxEntity("temp4",                                                 // id
+         //                              CVector3(1.4, -1.02, 0), // position
+         //                              CQuaternion(),                                           // orientation
+         //                              false,                                                   // movable or not?
+         //                              CVector3(0.01, 0.01, 0.1),                                 // size
+         //                              1);                                                      // mass in kg
+
+
+
+         // AddEntity(*box4);
+         //                                     CBoxEntity *box5 = new CBoxEntity("temp5",                                                 // id
+         //                              CVector3(1.19, -0.63, 0), // position
+         //                              CQuaternion(),                                           // orientation
+         //                              false,                                                   // movable or not?
+         //                              CVector3(0.01, 0.01, 0.1),                                 // size
+         //                              1);                                                      // mass in kg
+
+
+
+         // AddEntity(*box5);
+
+         //                                              CBoxEntity *box6 = new CBoxEntity("temp6",                                                 // id
+         //                              CVector3(0.97, -0.44, 0), // position
+         //                              CQuaternion(),                                           // orientation
+         //                              false,                                                   // movable or not?
+         //                              CVector3(0.01, 0.01, 0.1),                                 // size
+         //                              1);                                                      // mass in kg
+
+
+
+         // AddEntity(*box6);
    }
    catch (CARGoSException &ex)
    {

@@ -107,6 +107,8 @@ void CFootBotForaging::SStateData::Reset() {
       something happens, which is just a waste of time. */
    TimeRested = MinimumRestingTime;
    TimeSearchingForPlaceInNest = 0;
+   mGlobalX = 0;
+   mGlobalY = 0;
 }
 
 /****************************************/
@@ -218,7 +220,7 @@ void CFootBotForaging::doSend(char data[max_length], std::size_t length){
   {
     buf[i] = '\0';
   }
-  if (iter % 15 == 0)
+  if (iter % 15 == 0) {}
    //  std::cout<< m_id << " SEND: " << buf << std::endl;
   
   strcpy(data_mmap, buf);
@@ -233,7 +235,10 @@ void CFootBotForaging::doReceive(){
   strncpy(buf, actions_mmap, file_size);
   std::vector<std::string> result;
   boost::split(result, buf, boost::is_any_of(";"));
-  if (!result.empty()) {
+  auto time = std::time(nullptr);
+//   std::cout << std::ctime(&time) << " " << m_id << " " << last_received_iter  << " RECEIVE: $" << buf << "$" << std::endl;
+  if (!result.empty() && !(result.size() == 1 && result[0].empty())) {
+   
     if (last_received_iter != result[0]) {
       last_received_iter = result[0];
 
@@ -242,10 +247,19 @@ void CFootBotForaging::doReceive(){
          SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
       }
       else if (result.size() >= 2) {
-         if (result[1] == "RESET") {
+         if (result[1] == "RESET") { //!!!!!!!!!!!!!!!!!! Все роботы должны делать локальный ресет
             CSimulator &cSimulator = CSimulator::GetInstance();
             cSimulator.Reset();
          }
+      }
+      
+    }
+    else {
+      // sched_yield();
+      nanosleep((const struct timespec[]){{0, 1000L}}, NULL); //100000L
+      // std::cout<< m_id <<" YIELD "<< buf << std::endl;
+      if (result[1] == "RESET") {} else {
+         // doReceive();
       }
       
     }
@@ -342,6 +356,7 @@ void CFootBotForaging::ControlStep() {
    strcpy(pack, msg.c_str());
 
    doSend(pack, sizeof(pack));
+   // sched_yield();
 }
 
 void CFootBotForaging::setRABData() {
@@ -365,20 +380,19 @@ void CFootBotForaging::setRABData() {
 
 /****************************************/
 /****************************************/
-// А что если не перезапускать процесс аргоса каждый раз при создании энва в питоне, 
-// а как-то триггерить вызов этой функции?
 void CFootBotForaging::Reset() {
    /* Reset robot state */
    m_sStateData.Reset();
    /* Reset food data */
    m_sFoodData.Reset();
+   iter = 0;
    /* Set LED color */
    // m_pcLEDs->SetAllColors(CColor::RED);
    m_pcLEDs->SetAllColors(CColor::GREEN);
    /* Clear up the last exploration result */
    m_eLastExplorationResult = LAST_EXPLORATION_NONE;
    m_pcRABA->ClearData();
-   m_pcRABA->SetData(0, LAST_EXPLORATION_NONE);
+   // m_pcRABA->SetData(0, LAST_EXPLORATION_NONE);
 }
 
 /****************************************/

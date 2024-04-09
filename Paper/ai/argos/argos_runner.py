@@ -40,7 +40,7 @@ class Argos:
             
         else:
             # self.argos_process = subprocess.Popen([argos_path, '-z', '-c', argos_experiment_path], stdout=subprocess.PIPE) # При запуске из питона аргос постоянно отправляет одни и те же наблюдения. При запуске аргоса отдельно все работает
-            self.argos_process = subprocess.Popen([argos_path, '-z', '-l', f'./log_{self.files_id}.txt', '-e', f'./logerr_{self.files_id}.txt', '-c', argos_foraging_path], stdout=subprocess.PIPE,env=env)
+            self.argos_process = subprocess.Popen([argos_path, '-z', '-l', f'./log_{self.files_id}.txt', '-e', f'./logerr_{self.files_id}.txt', '-c', argos_foraging_path], stdout=subprocess.PIPE,env=env, ) #preexec_fn=lambda : os.nice(10)
             sleep(.25) # wait for argos to start
             # print("PID"self.argos_process.pid)
             
