@@ -61,7 +61,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
 
          // CBoxEntity *box1 = new CBoxEntity("temp1",                                                 // id
-         //                              CVector3(1.87, -1.87, 0), // position
+         //                              CVector3(-1.8, -0.86, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size
@@ -71,7 +71,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
          // AddEntity(*box1);
          //          CBoxEntity *box2 = new CBoxEntity("temp2",                                                 // id
-         //                              CVector3(1.69, -1.55, 0), // position
+         //                              CVector3(-1.78, -0.86, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size
@@ -81,7 +81,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
          // AddEntity(*box2);
          //                   CBoxEntity *box3 = new CBoxEntity("temp3",                                                 // id
-         //                              CVector3(1.55, -1.29, 0), // position
+         //                              CVector3(-1.76, -0.85, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size
@@ -91,7 +91,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
          // AddEntity(*box3);
          //                            CBoxEntity *box4 = new CBoxEntity("temp4",                                                 // id
-         //                              CVector3(1.4, -1.02, 0), // position
+         //                              CVector3(-1.7, -1.05, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size

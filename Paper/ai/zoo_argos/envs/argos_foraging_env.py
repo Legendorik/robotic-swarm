@@ -19,6 +19,7 @@ class State(Enum):
     DROP = 4
     GETTING_CLOSE = 5
     GETTING_CLOSE_TO_NEST = 6
+    GETTING_AWAY_FROM_NEST = 7
 
 
 REWARD_MAP = {
@@ -26,8 +27,9 @@ REWARD_MAP = {
     State.BUMP: -15,
     State.PICK: 100,
     State.DROP: 300,
-    State.GETTING_CLOSE: 1,
+    State.GETTING_CLOSE: 2,
     State.GETTING_CLOSE_TO_NEST: 1,
+    State.GETTING_AWAY_FROM_NEST: 1,
 }
 
 class ArgosForagingEnv(AECEnv):
@@ -65,8 +67,8 @@ class ArgosForagingEnv(AECEnv):
                 "has_food": spaces.Discrete(1),
                 "prox_vector": spaces.Box(-10, 10, shape=(2,), dtype=float), 
                 "is_collision": spaces.Discrete(1),
-                "rab_readings": spaces.Box(-10, 5000, (self.num_robots -1, 4), dtype=float),
-                "camera_readings": spaces.Box(-10, 5000, (12, 4), dtype=float),
+                "rab_readings": spaces.Box(-10, 10, (self.num_robots -1, 4), dtype=float),
+                "camera_readings": spaces.Box(-10, 10, (12, 4), dtype=float),
             })) for agent in self.possible_agents
         }
 
@@ -202,14 +204,19 @@ class ArgosForagingEnv(AECEnv):
             else:
                 if (self.previous_observations[agent].hasFood and not mapped_observations.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
+                    print(agent, " ACTUALLY DROPPED FOOD")
                 elif (not self.previous_observations[agent].hasFood and mapped_observations.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.PICK]
-                # elif (mapped_observations.isCollision):
-                #     self.rewards[agent] = REWARD_MAP[State.BUMP]
-                # elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
-                #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
-                # elif (mapped_observations.hasFood and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
-                #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
+                    print(agent, " ACTUALLY PICKED FOOD")
+                elif (mapped_observations.isCollision):
+                    self.rewards[agent] = REWARD_MAP[State.BUMP]
+                elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                    self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
+                # По какой-то причине вектор действительно увеличивается, когда робот едет к выходу из гнезда. Этот эффект исчезает примерно на границе гнезда с остальным пространством
+                # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
+                #     self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+                elif (mapped_observations.hasFood and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
+                    self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
                 else:
                     self.rewards[agent] = REWARD_MAP[State.MOVE]
                 # self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
@@ -220,6 +227,7 @@ class ArgosForagingEnv(AECEnv):
         self.previous_observations[agent] = mapped_observations
         # out messages
         velocity = 10
+        
         heading = (velocity * cos(action * pi/8), velocity * sin(action * pi/8))
         msg = str(self.iter) + ";" + str(heading[0]) + ";" + str(heading[1])
         # self.argos_io.send_to(msg, agent_id)
@@ -232,7 +240,7 @@ class ArgosForagingEnv(AECEnv):
 
         if (self._cumulative_rewards[agent] < -300):
             self.truncations[agent] = True
-            self.game_over = True
+            # self.game_over = True
         
         if (self.iter > 2000):
             self.truncations[agent] = True
@@ -339,6 +347,9 @@ class BotObservations:
         return np.concatenate(result)
 
     def is_food_getting_closer(self, other):
+        if (not other.isValid):
+            return False
+        
         blueReadings = list(filter(lambda e: e.is_blue(), self.cameraReadings))
         otherBlueReadings = list(filter(lambda e: e.is_blue(), other.cameraReadings))
         if (len(blueReadings) == 0): 
@@ -359,6 +370,8 @@ class BotObservations:
         if not isinstance(other, BotObservations):
             # don't attempt to compare against unrelated types
             return NotImplemented
+        if (not other.isValid):
+            return False
         return self.xPos == other.xPos and \
                self.yPos == other.yPos and \
                self.inNest == other.inNest and \

@@ -29,7 +29,7 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     )
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=320)
-    parser.add_argument('--epoch', type=int, default=50)
+    parser.add_argument('--epoch', type=int, default=150)
     parser.add_argument('--step-per-epoch', type=int, default=1000) #100
     parser.add_argument('--step-per-collect', type=int, default=50) #10 #50
     parser.add_argument('--update-per-step', type=float, default=0.1)
@@ -103,7 +103,7 @@ def _get_agents(
         #     agent_learn.load_state_dict(torch.load(args.resume_path))
         if (args.watch):
             ### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            agent_learn.load_state_dict(torch.load('./log/ttt/dqn/policy.pth'))
+            agent_learn.load_state_dict(torch.load('./log/ttt/dqn/policy_0.pth'))
 
     if agent_opponent is None:
         # agent_opponent = RandomPolicy()
@@ -111,7 +111,7 @@ def _get_agents(
         # if args.resume_path:
         #     agent_opponent.load_state_dict(torch.load(args.resume_path))
         if (args.watch):
-            agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy.pth'))
+            agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_1.pth'))
 
     agents = [agent_learn, agent_opponent]
     policy = MultiAgentPolicyManager(agents, env)
@@ -160,22 +160,26 @@ if __name__ == "__main__":
     # ======== Step 4: Callback functions setup =========
     def save_best_fn(policy):
         if hasattr(args, 'model_save_path'):
-            model_save_path = args.model_save_path
+            model_save_path1 = args.model_save_path
+            model_save_path2 = args.model_save_path
         else: 
-            model_save_path = os.path.join("log", "ttt", "dqn", "policy.pth")
+            model_save_path1 = os.path.join("log", "ttt", "dqn", "policy_0.pth")
+            model_save_path2 = os.path.join("log", "ttt", "dqn", "policy_1.pth")
         # os.makedirs(model_save_path, exist_ok=True)
-        torch.save(policy.policies[agents[0]].state_dict(), model_save_path)
-        #save all agents policies?
+        torch.save(policy.policies[agents[0]].state_dict(), model_save_path1)
+        torch.save(policy.policies[agents[1]].state_dict(), model_save_path2)
 
     def stop_fn(mean_rewards):
         return mean_rewards >= args.win_condition
 
     def train_fn(epoch, env_step):
         policy.policies[agents[0]].set_eps(args.eps_train)
+        policy.policies[agents[1]].set_eps(args.eps_train)
         #set eps for all policies
 
     def test_fn(epoch, env_step):
         policy.policies[agents[0]].set_eps(args.eps_test)
+        policy.policies[agents[1]].set_eps(args.eps_test)
         #set eps for all policies
 
     def reward_metric(rews):

@@ -247,18 +247,26 @@ void CFootBotForaging::doReceive(){
          SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
       }
       else if (result.size() >= 2) {
-         if (result[1] == "RESET") { //!!!!!!!!!!!!!!!!!! Все роботы должны делать локальный ресет
-            CSimulator &cSimulator = CSimulator::GetInstance();
-            cSimulator.Reset();
+         if (result[1] == "RESET") {
+            if (m_id == 0) {
+               CSimulator &cSimulator = CSimulator::GetInstance();
+               cSimulator.Reset();
+            }
+            else {
+               Reset();
+            }
+
          }
       }
       
     }
     else {
       // sched_yield();
-      nanosleep((const struct timespec[]){{0, 1000L}}, NULL); //100000L
+      nanosleep((const struct timespec[]){{0, 1000000L}}, NULL); //100000L
       // std::cout<< m_id <<" YIELD "<< buf << std::endl;
-      if (result[1] == "RESET") {} else {
+      if (result[1] == "RESET") {
+         
+      } else {
          // doReceive();
       }
       
@@ -296,7 +304,7 @@ std::string CFootBotForaging::GetPackage(){
    package << rabReadingSize << ";";
    for (size_t i = 0; i < rabReadingSize; i++)
    {
-      package << rabReadings[i].Range << ";";
+      package << rabReadings[i].Range / 100 << ";";
       package << rabReadings[i].HorizontalBearing.GetValue() << ";";
       // is robot have food
       package << rabReadings[i].Data[0] << ";";
@@ -309,7 +317,7 @@ std::string CFootBotForaging::GetPackage(){
    package << cameraReadingSize << ";";
    for (size_t i = 0; i < cameraReadingSize; i++)
    {
-      package << cameraReadings.BlobList[i]->Distance << ";";
+      package << cameraReadings.BlobList[i]->Distance / 100 << ";";
       package << cameraReadings.BlobList[i]->Angle.GetValue() << ";";
       package << cameraReadings.BlobList[i]->Color.GetRed() << ";";
       package << cameraReadings.BlobList[i]->Color.GetGreen() << ";";
@@ -381,6 +389,7 @@ void CFootBotForaging::setRABData() {
 /****************************************/
 /****************************************/
 void CFootBotForaging::Reset() {
+   std::cout<< m_id << " RESET!!! " << std::endl;
    /* Reset robot state */
    m_sStateData.Reset();
    /* Reset food data */
