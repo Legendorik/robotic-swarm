@@ -247,6 +247,7 @@ void CFootBotForaging::doReceive(){
          SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
       }
       else if (result.size() >= 2) {
+         std::cout<< m_id << " RECEIVE: " << buf << std::endl;
          if (result[1] == "RESET") {
             if (m_id == 0) {
                CSimulator &cSimulator = CSimulator::GetInstance();
@@ -389,7 +390,8 @@ void CFootBotForaging::setRABData() {
 /****************************************/
 /****************************************/
 void CFootBotForaging::Reset() {
-   std::cout<< m_id << " RESET!!! " << std::endl;
+   // std::cout<< m_id << " RESET!!! " << std::endl;
+   doSend("0;", 2);
    /* Reset robot state */
    m_sStateData.Reset();
    /* Reset food data */

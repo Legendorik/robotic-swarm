@@ -26,7 +26,18 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 {
    try
    {
+      std::cout << "INIT FORAGING LOOOP" << std::endl;
+      LOG << "INIT FORAGING LOOOP ARGOOOS" << std::endl;
+
+
+
       TConfigurationNode &tForaging = GetNode(t_node, "foraging");
+
+      /* Get the output file name from XML */
+      GetNodeAttribute(tForaging, "output", m_strOutput);
+      /* Open the file, erasing its contents */
+      m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
+
       /* Get a pointer to the floor entity */
       m_pcFloor = &GetSpace().GetFloorEntity();
       /* Get the number of food items we want to be scattered from XML */
@@ -39,15 +50,18 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
       m_pcRNG = CRandom::CreateRNG("argos");
       /* Distribute uniformly the items in the environment */
 
+      m_cOutput << "FOOD POSITIONS FROM INIT" << std::endl;
       for (UInt32 i = 0; i < unFoodItems; ++i)
       {
 
          m_cFoodPos.push_back(
              CVector2(m_pcRNG->Uniform(m_cForagingArenaSideX),
                       m_pcRNG->Uniform(m_cForagingArenaSideY)));
+         m_cOutput << i<<  ": " << m_cFoodPos[i].GetX() << "   " << m_cFoodPos[i].GetY() << std::endl;
 
          addLedOnFood(i, true);
       }
+      m_cOutput << std::endl << std::endl << std::endl;
       // /* Get the output file name from XML */
       // GetNodeAttribute(tForaging, "output", m_strOutput);
       // /* Open the file, erasing its contents */
@@ -61,7 +75,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
 
          // CBoxEntity *box1 = new CBoxEntity("temp1",                                                 // id
-         //                              CVector3(-1.8, -0.86, 0), // position
+         //                              CVector3(-0.54, -1.05, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size
@@ -71,7 +85,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
          // AddEntity(*box1);
          //          CBoxEntity *box2 = new CBoxEntity("temp2",                                                 // id
-         //                              CVector3(-1.78, -0.86, 0), // position
+         //                              CVector3(-0.29, -0.71, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size
@@ -81,7 +95,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
          // AddEntity(*box2);
          //                   CBoxEntity *box3 = new CBoxEntity("temp3",                                                 // id
-         //                              CVector3(-1.76, -0.85, 0), // position
+         //                              CVector3(-0.59, -1.03, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size
@@ -91,7 +105,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
          // AddEntity(*box3);
          //                            CBoxEntity *box4 = new CBoxEntity("temp4",                                                 // id
-         //                              CVector3(-1.7, -1.05, 0), // position
+         //                              CVector3(-0.63, -1.12, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size
@@ -101,7 +115,7 @@ void CForagingLoopFunctions::Init(TConfigurationNode &t_node)
 
          // AddEntity(*box4);
          //                                     CBoxEntity *box5 = new CBoxEntity("temp5",                                                 // id
-         //                              CVector3(1.19, -0.63, 0), // position
+         //                              CVector3(-0.3, -0.87, 0), // position
          //                              CQuaternion(),                                           // orientation
          //                              false,                                                   // movable or not?
          //                              CVector3(0.01, 0.01, 0.1),                                 // size
@@ -137,20 +151,27 @@ void CForagingLoopFunctions::Reset()
    m_unCollectedFood = 0;
    m_nEnergy = 0;
    /* Close the file */
-   m_cOutput.close();
+   // m_cOutput.close();
    /* Open the file, erasing its contents */
-   m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
-   m_cOutput << "# clock\twalking\tresting\tcollected_food\tenergy" << std::endl;
+   // m_cOutput.open(m_strOutput.c_str(), std::ios_base::trunc | std::ios_base::out);
+   // m_cOutput << "# clock\twalking\tresting\tcollected_food\tenergy" << std::endl;
    /* Distribute uniformly the items in the environment */
+
+   m_cOutput << "FOOD POSITIONS FROM RESET" << std::endl;
+
    for (UInt32 i = 0; i < m_cFoodPos.size(); ++i)
    {
       m_cFoodPos[i].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
                         m_pcRNG->Uniform(m_cForagingArenaSideY));
+                     
+      m_cOutput << i<<  ": " << m_cFoodPos[i].GetX() << "   " << m_cFoodPos[i].GetY() << std::endl;
 
       // removeLedFromFood(i);
       // addLedOnFood(i, false);
       moveLedToFood(i);
    }
+   m_pcFloor->SetChanged();
+   m_cOutput << std::endl << std::endl << std::endl;
 }
 
 /****************************************/
@@ -226,10 +247,14 @@ void CForagingLoopFunctions::PreStep()
          /* Check whether the foot-bot is in the nest */
          if (cPos.GetX() < -1.0f)
          {
+            
             /* Place a new food item on the ground */
             m_cFoodPos[sFoodData.FoodItemIdx].Set(m_pcRNG->Uniform(m_cForagingArenaSideX),
                                                   m_pcRNG->Uniform(m_cForagingArenaSideY));
-            
+
+            m_cOutput << cFootBot.GetId() << " SPAWN NEW FOOD" << std::endl;
+            m_cOutput << sFoodData.FoodItemIdx<<  ": " << m_cFoodPos[sFoodData.FoodItemIdx].GetX() << "   " << m_cFoodPos[sFoodData.FoodItemIdx].GetY() << std::endl;
+            m_cOutput << std::endl;
             // addLedOnFood(sFoodData.FoodItemIdx, false);
             moveLedToFood(sFoodData.FoodItemIdx);
             /* Drop the food item */
@@ -255,6 +280,9 @@ void CForagingLoopFunctions::PreStep()
             {
                if ((cPos - m_cFoodPos[i]).SquareLength() < m_fFoodSquareRadius)
                {
+                     m_cOutput << cFootBot.GetId() << " PICKED FOOD" << std::endl;
+                     m_cOutput << i<<  ": " << m_cFoodPos[i].GetX() << "   " << m_cFoodPos[i].GetY() << std::endl;
+                     m_cOutput << std::endl;
                   /* If so, we move that item out of sight */
                   m_cFoodPos[i].Set(100.0f, 100.f);
                   // removeLedFromFood(sFoodData.FoodItemIdx);
@@ -274,11 +302,11 @@ void CForagingLoopFunctions::PreStep()
    /* Update energy expediture due to walking robots */
    m_nEnergy -= unWalkingFBs * m_unEnergyPerWalkingRobot;
    /* Output stuff to file */
-   m_cOutput << GetSpace().GetSimulationClock() << "\t"
-             << unWalkingFBs << "\t"
-             << unRestingFBs << "\t"
-             << m_unCollectedFood << "\t"
-             << m_nEnergy << std::endl;
+   // m_cOutput << GetSpace().GetSimulationClock() << "\t"
+   //           << unWalkingFBs << "\t"
+   //           << unRestingFBs << "\t"
+   //           << m_unCollectedFood << "\t"
+   //           << m_nEnergy << std::endl;
 }
 
 /****************************************/

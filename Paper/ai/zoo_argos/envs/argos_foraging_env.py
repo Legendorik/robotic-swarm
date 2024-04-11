@@ -68,7 +68,7 @@ class ArgosForagingEnv(AECEnv):
                 "prox_vector": spaces.Box(-10, 10, shape=(2,), dtype=float), 
                 "is_collision": spaces.Discrete(1),
                 "rab_readings": spaces.Box(-10, 10, (self.num_robots -1, 4), dtype=float),
-                "camera_readings": spaces.Box(-10, 10, (12, 4), dtype=float),
+                "camera_readings": spaces.Box(-10, 10, (4, 4), dtype=float),
             })) for agent in self.possible_agents
         }
 
@@ -193,6 +193,10 @@ class ArgosForagingEnv(AECEnv):
         in_msg = self.argos.receive_from(agent_id)
         in_msg = in_msg.split(";")
         mapped_observations = BotObservations(in_msg)
+        if (mapped_observations.hasFood):
+            a = 1
+        if (self.iter > 402):
+            a = 1
         
         if (mapped_observations.isValid):
             self.obs_history[agent].append(f"{mapped_observations.iter}: {mapped_observations.xPos}; {mapped_observations.yPos}")
@@ -202,21 +206,31 @@ class ArgosForagingEnv(AECEnv):
                 self.rewards[agent] = 0
                 # print(self.iter,"ALERT SOME FUCK UP ")
             else:
+                if (self.previous_observations[agent].iter > mapped_observations.iter):
+                    print(agent, "OBS RUINED ",self.previous_observations[agent].iter, " > ",  mapped_observations.iter)
+                    a = 1
                 if (self.previous_observations[agent].hasFood and not mapped_observations.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
-                    print(agent, " ACTUALLY DROPPED FOOD")
+                    print(agent, " ACTUALLY DROPPED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (not self.previous_observations[agent].hasFood and mapped_observations.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.PICK]
-                    print(agent, " ACTUALLY PICKED FOOD")
+                    print(agent, " ACTUALLY PICKED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (mapped_observations.isCollision):
                     self.rewards[agent] = REWARD_MAP[State.BUMP]
                 elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
                     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
+                elif (not mapped_observations.hasFood and mapped_observations.has_food() and not mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                    self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE]
                 # По какой-то причине вектор действительно увеличивается, когда робот едет к выходу из гнезда. Этот эффект исчезает примерно на границе гнезда с остальным пространством
-                # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
-                #     self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+                elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
+                    self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+                elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() < self.previous_observations[agent].light_vector_length()):
+                    self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+
                 elif (mapped_observations.hasFood and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
                     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
+                elif (mapped_observations.hasFood and mapped_observations.light_vector_length() < self.previous_observations[agent].light_vector_length()):
+                    self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
                 else:
                     self.rewards[agent] = REWARD_MAP[State.MOVE]
                 # self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
@@ -224,13 +238,24 @@ class ArgosForagingEnv(AECEnv):
             self.rewards[agent] = 0
             action = 0
 
-        self.previous_observations[agent] = mapped_observations
+        if (mapped_observations.isValid):
+            self.previous_observations[agent] = mapped_observations
         # out messages
         velocity = 10
+        # if (self.iter < 5):
+        #     action = 1
+        # else:
+        #     action = 0
         
         heading = (velocity * cos(action * pi/8), velocity * sin(action * pi/8))
         msg = str(self.iter) + ";" + str(heading[0]) + ";" + str(heading[1])
         # self.argos_io.send_to(msg, agent_id)
+        # if (self.iter == 400):
+        #     self.argos.send_to(str(-1) + ";" + "RESET")
+        #     for i in range(1, self.num_robots):
+        #         self.argos.send_to(str(-1)+ ";" + "RESET")
+        #     sleep(.05)
+        # else:
         self.argos.send_to(msg, agent_id)
 
         # print(self.iter, "; REWARD: ", self.rewards[agent])
@@ -238,9 +263,9 @@ class ArgosForagingEnv(AECEnv):
         # if (self.iter % 199 == 0 or self.iter % 199 == 1 ): 
         #     print(self.iter, "; AGENT: ", agent, "  IN MESSAGE: ", in_msg, "  OUT MESSAGE: ", msg, " REWARD: ", self.rewards[agent], " CUMULATIVE REWARD: ", self._cumulative_rewards[agent] ) 
 
-        if (self._cumulative_rewards[agent] < -300):
+        if (self._cumulative_rewards[agent] < -400):
             self.truncations[agent] = True
-            # self.game_over = True
+            self.game_over = True
         
         if (self.iter > 2000):
             self.truncations[agent] = True
@@ -326,18 +351,19 @@ class BotObservations:
     
     def get_max_len_rab_readings(self):
         num_robots = 2 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        max_len = num_robots - 1
         result = []
         for i in range(len(self.rabReadings)):
             result.append(self.rabReadings[i].flatten_observations())
-        for i in range(num_robots - 1 - len(result)):
+        for i in range(max_len - len(result)):
             result.append(RabReading(0,0,0,0).flatten_observations())
         return np.concatenate(result)
     
     def get_max_len_camera_readings(self):
-        max_len = 12
+        max_len = 4
         result = []
         for i in range(len(self.cameraReadings)):
-            if (self.cameraReadings[i].is_blue()):
+            if (self.cameraReadings[i].is_blue() and len(result) < max_len):
                 result.append(self.cameraReadings[i].flatten_observations())
         for i in range(len(self.cameraReadings)):
             if (not self.cameraReadings[i].is_blue() and len(result) < max_len):
@@ -362,6 +388,9 @@ class BotObservations:
                 if e.distance < ee.distance:
                     return True
         return False
+    
+    def has_food(self) -> bool:
+        return len(self.cameraReadings) > 0 and len(list(filter(lambda e: e.is_blue(), self.cameraReadings))) > 0
     
     def light_vector_length(self):
         return math.sqrt(self.xLight * self.xLight + self.yLight * self.yLight)
