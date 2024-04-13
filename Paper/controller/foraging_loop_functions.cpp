@@ -8,8 +8,10 @@
 /****************************************/
 /****************************************/
 
-CForagingLoopFunctions::CForagingLoopFunctions() : m_cForagingArenaSideX(-0.9f, 1.7f),
-                                                   m_cForagingArenaSideY(-1.7f, 1.7f),
+CForagingLoopFunctions::CForagingLoopFunctions() : //m_cForagingArenaSideX(-0.9f, 1.7f),
+                                                   // m_cForagingArenaSideY(-1.7f, 1.7f),
+                                                   m_cForagingArenaSideX(-0.9f, 0.9f),
+                                                   m_cForagingArenaSideY(-0.85f, 0.85f),
                                                    m_pcFloor(NULL),
                                                    m_pcRNG(NULL),
                                                    m_unCollectedFood(0),

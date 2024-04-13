@@ -263,7 +263,7 @@ void CFootBotForaging::doReceive(){
     }
     else {
       // sched_yield();
-      nanosleep((const struct timespec[]){{0, 1000000L}}, NULL); //100000L
+      nanosleep((const struct timespec[]){{0, 2000000L}}, NULL); //100000L
       // std::cout<< m_id <<" YIELD "<< buf << std::endl;
       if (result[1] == "RESET") {
          
