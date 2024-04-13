@@ -63,13 +63,14 @@ class ArgosForagingEnv(AECEnv):
 
         self._observation_spaces = {
             agent: spaces.flatten_space(spaces.Dict({
-                "light_vector": spaces.Box(-10, 10, shape=(2,), dtype=float), 
+                "pos": spaces.Box(-2, 1, shape=(2,), dtype=float), 
+                "light_vector": spaces.Box(-2, 1, shape=(2,), dtype=float), 
                 "in_nest": spaces.Discrete(1),
                 "has_food": spaces.Discrete(1),
-                "prox_vector": spaces.Box(-10, 10, shape=(2,), dtype=float), 
+                "prox_vector": spaces.Box(-2, 1, shape=(2,), dtype=float), 
                 "is_collision": spaces.Discrete(1),
-                "rab_readings": spaces.Box(-10, 10, (self.num_robots -1, 4), dtype=float),
-                "camera_readings": spaces.Box(-10, 10, (6, 4), dtype=float),
+                "rab_readings": spaces.Box(-2, 1, (self.num_robots -1, 4), dtype=float),
+                "camera_readings": spaces.Box(-2, 1, (4, 4), dtype=float),
             })) for agent in self.possible_agents
         }
 
@@ -219,20 +220,20 @@ class ArgosForagingEnv(AECEnv):
                     print(agent, "ENV", self.env_id, " ACTUALLY PICKED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (mapped_observations.isCollision):
                     self.rewards[agent] = REWARD_MAP[State.BUMP]
-                elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
-                    self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
-                elif (not mapped_observations.hasFood and mapped_observations.has_food() and not mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
-                    self.rewards[agent] = -3*REWARD_MAP[State.GETTING_CLOSE]
+                # elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
+                # elif (not mapped_observations.hasFood and mapped_observations.has_food() and not mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE]
                 # По какой-то причине вектор действительно увеличивается, когда робот едет к выходу из гнезда. Этот эффект исчезает примерно на границе гнезда с остальным пространством
                 # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
                 # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() < self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
 
-                elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos > self.previous_observations[agent].xPos):
-                    self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
-                elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos < self.previous_observations[agent].xPos):
-                    self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+                # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos > self.previous_observations[agent].xPos):
+                #     self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+                # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos < self.previous_observations[agent].xPos):
+                #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
 
                 # elif (mapped_observations.hasFood and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
@@ -359,7 +360,8 @@ class BotObservations:
             
 
     def flatten_observations(self):
-        return np.concatenate([ [self.xLight, self.yLight, int(self.inNest), int(self.hasFood), self.xProx, self.yProx, self.isCollision], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
+        return np.concatenate([ [self.xPos, self.yPos, self.xLight, self.yLight, 
+                                 int(self.inNest), int(self.hasFood), self.xProx, self.yProx, self.isCollision], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
     
     def get_max_len_rab_readings(self):
         num_robots = 2 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -372,14 +374,14 @@ class BotObservations:
         return np.concatenate(result)
     
     def get_max_len_camera_readings(self):
-        max_len = 6
+        max_len = 4
         result = []
         for i in range(len(self.cameraReadings)):
             if (self.cameraReadings[i].is_blue() and len(result) < max_len):
                 result.append(self.cameraReadings[i].flatten_observations())
-        for i in range(len(self.cameraReadings)):
-            if (not self.cameraReadings[i].is_blue() and len(result) < max_len):
-                result.append(self.cameraReadings[i].flatten_observations())
+        # for i in range(len(self.cameraReadings)):
+        #     if (not self.cameraReadings[i].is_blue() and len(result) < max_len):
+        #         result.append(self.cameraReadings[i].flatten_observations())
         for i in range(max_len - len(result)):
             result.append(CameraReading(0,0,0,0,0).flatten_observations())
         return np.concatenate(result)
@@ -397,7 +399,8 @@ class BotObservations:
         
         for e in blueReadings:
             for ee in otherBlueReadings:
-                if e.distance < ee.distance:
+                # if e.distance < ee.distance:
+                if self.vector_length(e.distance, e.angle) < self.vector_length(ee.distance, ee.angle):
                     return True
         return False
     
@@ -406,6 +409,10 @@ class BotObservations:
     
     def light_vector_length(self):
         return math.sqrt(self.xLight * self.xLight + self.yLight * self.yLight)
+    
+    def vector_length(self, x, y):
+        return math.sqrt(x * x + y * y)
+
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BotObservations):

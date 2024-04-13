@@ -305,8 +305,13 @@ std::string CFootBotForaging::GetPackage(){
    package << rabReadingSize << ";";
    for (size_t i = 0; i < rabReadingSize; i++)
    {
-      package << rabReadings[i].Range / 100 << ";";
-      package << rabReadings[i].HorizontalBearing.GetValue() << ";";
+      auto rabVector = CVector2(rabReadings[i].Range / 100, rabReadings[i].HorizontalBearing);
+      // package << rabReadings[i].Range / 100 << ";";
+      // package << rabReadings[i].HorizontalBearing.GetValue() << ";";
+
+      package << rabVector.GetX() << ";";
+      package << rabVector.GetY() << ";";
+
       // is robot have food
       package << rabReadings[i].Data[0] << ";";
       // is robot see food
@@ -318,8 +323,11 @@ std::string CFootBotForaging::GetPackage(){
    package << cameraReadingSize << ";";
    for (size_t i = 0; i < cameraReadingSize; i++)
    {
-      package << cameraReadings.BlobList[i]->Distance / 100 << ";";
-      package << cameraReadings.BlobList[i]->Angle.GetValue() << ";";
+      auto cameraVector = CVector2(cameraReadings.BlobList[i]->Distance / 100, cameraReadings.BlobList[i]->Angle);
+      // package << cameraReadings.BlobList[i]->Distance / 100 << ";";
+      // package << cameraReadings.BlobList[i]->Angle.GetValue() << ";";
+      package << cameraVector.GetX() << ";";
+      package << cameraVector.GetY() << ";";
       package << cameraReadings.BlobList[i]->Color.GetRed() << ";";
       package << cameraReadings.BlobList[i]->Color.GetGreen() << ";";
       package << cameraReadings.BlobList[i]->Color.GetBlue() << ";";
