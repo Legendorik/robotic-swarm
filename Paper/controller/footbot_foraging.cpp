@@ -285,7 +285,7 @@ std::string CFootBotForaging::GetPackage(){
    std::stringstream package;
    package << std::fixed << std::setprecision(2);
    package << iter << ";" // message id
-         << m_sStateData.mGlobalX << ";" << m_sStateData.mGlobalY << ";" // global position
+         << m_sStateData.mGlobalX << ";" << m_sStateData.mGlobalY << ";" << m_sStateData.mRotationZ << ";" // global position
          << m_sStateData.InNest << ";" // is robot in nest
          << m_sFoodData.HasFoodItem << ";"; // is robot carrying food
 
@@ -345,7 +345,9 @@ void CFootBotForaging::ControlStep() {
 
 
    const CCI_PositioningSensor::SReading& sPosRead = m_pcPos->GetReading();
-   m_sStateData.Update(sPosRead.Position.GetX(), sPosRead.Position.GetY());
+   CRadians cZAngle, cYAngle, cXAngle;
+   sPosRead.Orientation.ToEulerAngles(cZAngle, cYAngle, cXAngle);        
+   m_sStateData.Update(sPosRead.Position.GetX(), sPosRead.Position.GetY(), cZAngle.SignedNormalize().GetValue());
 
    setRABData();
    UpdateState();

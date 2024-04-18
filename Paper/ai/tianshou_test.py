@@ -22,6 +22,7 @@ def watch(args: argparse.Namespace = get_args(watch = True),) -> None:
     result = collector.collect(n_episode=1, render=args.render)
     rews, lens = result["rews"], result["lens"]
     print(f"Final reward: {rews[:, 0].mean()}, length: {lens.mean()}")
+    env.close()
 
 
 if __name__ == "__main__":

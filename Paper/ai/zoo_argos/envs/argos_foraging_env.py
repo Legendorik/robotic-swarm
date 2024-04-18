@@ -64,13 +64,14 @@ class ArgosForagingEnv(AECEnv):
         self._observation_spaces = {
             agent: spaces.flatten_space(spaces.Dict({
                 "pos": spaces.Box(-2, 1, shape=(2,), dtype=float), 
+                "rot": spaces.Box(-4, 4, shape=(1,), dtype=float), 
                 "light_vector": spaces.Box(-2, 1, shape=(2,), dtype=float), 
                 "in_nest": spaces.Discrete(1),
                 "has_food": spaces.Discrete(1),
                 "prox_vector": spaces.Box(-2, 1, shape=(2,), dtype=float), 
                 "is_collision": spaces.Discrete(1),
                 "rab_readings": spaces.Box(-2, 1, (self.num_robots -1, 4), dtype=float),
-                "camera_readings": spaces.Box(-2, 1, (4, 4), dtype=float),
+                "camera_readings": spaces.Box(-2, 1, (1, 4), dtype=float),
             })) for agent in self.possible_agents
         }
 
@@ -214,26 +215,34 @@ class ArgosForagingEnv(AECEnv):
                     a = 1
                 if (self.previous_observations[agent].hasFood and not mapped_observations.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
-                    print(agent, "ENV", self.env_id, " ACTUALLY DROPPED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
+                    # print(agent, "ENV", self.env_id, " ACTUALLY DROPPED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (not self.previous_observations[agent].hasFood and mapped_observations.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.PICK]
-                    print(agent, "ENV", self.env_id, " ACTUALLY PICKED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
+                    # print(agent, "ENV", self.env_id, " ACTUALLY PICKED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (mapped_observations.isCollision):
                     self.rewards[agent] = REWARD_MAP[State.BUMP]
-                # elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
-                #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
-                # elif (not mapped_observations.hasFood and mapped_observations.has_food() and not mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
-                #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE]
+                elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "closer to food", REWARD_MAP[State.GETTING_CLOSE])
+                    self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
+                elif (not mapped_observations.hasFood and mapped_observations.has_food() and not mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "far from food", -2*REWARD_MAP[State.GETTING_CLOSE])
+                    self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE]
                 # По какой-то причине вектор действительно увеличивается, когда робот едет к выходу из гнезда. Этот эффект исчезает примерно на границе гнезда с остальным пространством
                 # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
                 # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() < self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
 
-                # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos > self.previous_observations[agent].xPos):
-                #     self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
-                # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos < self.previous_observations[agent].xPos):
-                #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+                elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos > self.previous_observations[agent].xPos):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "from nest", REWARD_MAP[State.GETTING_AWAY_FROM_NEST])
+                    self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+                elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos < self.previous_observations[agent].xPos):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "closer to nest", -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST])
+                    self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
 
                 # elif (mapped_observations.hasFood and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
@@ -241,10 +250,16 @@ class ArgosForagingEnv(AECEnv):
                 #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
 
                 elif (mapped_observations.hasFood and mapped_observations.xPos < self.previous_observations[agent].xPos):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "closer to nest with food", REWARD_MAP[State.GETTING_CLOSE_TO_NEST])
                     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
                 elif (mapped_observations.hasFood and mapped_observations.xPos > self.previous_observations[agent].xPos):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "from nest with food", -2*REWARD_MAP[State.GETTING_CLOSE_TO_NEST])
                     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
                 else:
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "just move", REWARD_MAP[State.MOVE])
                     self.rewards[agent] = REWARD_MAP[State.MOVE]
                 # self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
         else:
@@ -276,12 +291,12 @@ class ArgosForagingEnv(AECEnv):
         #     print(self.iter, "; AGENT: ", agent, "  IN MESSAGE: ", in_msg, "  OUT MESSAGE: ", msg, " REWARD: ", self.rewards[agent], " CUMULATIVE REWARD: ", self._cumulative_rewards[agent] ) 
 
         if (self._cumulative_rewards[agent] < -400):
-            self.truncations[agent] = True
             if (agent_id == 0):
+                self.terminations[agent] = True
                 self.game_over = True
         
-        if (self.iter > 2000):
-            self.truncations[agent] = True
+        if (self.iter > 1000):
+            self.terminations[agent] = True
             self.game_over = True
 
         if (self.game_over):
@@ -318,22 +333,23 @@ class BotObservations:
             self.iter = int(raw_observations[0]) if len(raw_observations) > 0 else -1
             self.xPos = float(raw_observations[1]) if len(raw_observations) > 1 else 0
             self.yPos = float(raw_observations[2]) if len(raw_observations) > 2 else 0
-            self.inNest = bool(int(raw_observations[3])) if len(raw_observations) > 3 else False
-            self.hasFood = bool(int(raw_observations[4])) if len(raw_observations) > 4 else False
-            self.xLight = float(raw_observations[5]) if len(raw_observations) > 5 else 0
-            self.yLight = float(raw_observations[6]) if len(raw_observations) > 6 else 0
-            self.xProx = float(raw_observations[7]) if len(raw_observations) > 7 else 0
-            self.yProx = float(raw_observations[8]) if len(raw_observations) > 8 else 0
-            self.isCollision = bool(int(raw_observations[9])) if len(raw_observations) > 9 else False
-            rabReadingsSize = int(raw_observations[10]) if len(raw_observations) > 10 else 0
+            self.zRot = float(raw_observations[3]) if len(raw_observations) > 3 else 0
+            self.inNest = bool(int(raw_observations[4])) if len(raw_observations) > 4 else False
+            self.hasFood = bool(int(raw_observations[5])) if len(raw_observations) > 5 else False
+            self.xLight = float(raw_observations[6]) if len(raw_observations) > 6 else 0
+            self.yLight = float(raw_observations[7]) if len(raw_observations) > 7 else 0
+            self.xProx = float(raw_observations[8]) if len(raw_observations) > 8 else 0
+            self.yProx = float(raw_observations[9]) if len(raw_observations) > 9 else 0
+            self.isCollision = bool(int(raw_observations[10])) if len(raw_observations) > 10 else False
+            rabReadingsSize = int(raw_observations[11]) if len(raw_observations) > 11 else 0
             self.rabReadings = []
-            next_index = 11
+            next_index = 12
 
             for i in range(rabReadingsSize):
                 if (len(raw_observations) > next_index + 3):
                     self.rabReadings.append(RabReading(
-                        range=float(raw_observations[next_index]),
-                        bearing=float(raw_observations[next_index+1]),
+                        x=float(raw_observations[next_index]),
+                        y=float(raw_observations[next_index+1]),
                         has_food=bool(raw_observations[next_index+2]),
                         see_food=bool(raw_observations[next_index+3]),
                     ))
@@ -346,8 +362,8 @@ class BotObservations:
             for i in range(cameraReadingsSize):
                 if (len(raw_observations) > next_index + 4):
                     self.cameraReadings.append(CameraReading(
-                        distance=float(raw_observations[next_index]),
-                        angle=float(raw_observations[next_index+1]),
+                        x=float(raw_observations[next_index]),
+                        y=float(raw_observations[next_index+1]),
                         r=int(raw_observations[next_index+2]),
                         g=int(raw_observations[next_index+3]),
                         b=int(raw_observations[next_index+4]),
@@ -360,8 +376,8 @@ class BotObservations:
             
 
     def flatten_observations(self):
-        return np.concatenate([ [self.xPos, self.yPos, self.xLight, self.yLight, 
-                                 int(self.inNest), int(self.hasFood), self.xProx, self.yProx, self.isCollision], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
+        return np.concatenate([ [self.xPos, self.yPos, self.zRot, self.xLight, self.yLight, 
+                                 int(self.inNest), int(self.hasFood), self.xProx, self.yProx, int(self.isCollision)], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
     
     def get_max_len_rab_readings(self):
         num_robots = 2 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -373,12 +389,20 @@ class BotObservations:
             result.append(RabReading(0,0,0,0).flatten_observations())
         return np.concatenate(result)
     
+    def get_closest_food(self):
+        return functools.reduce(lambda a, b: b if b.is_blue() and self.vector_length(b.x, b.y) < self.vector_length(a.x, a.y) else a, 
+                                    self.cameraReadings, CameraReading(5, 5, 0, 0, 0))
+    
     def get_max_len_camera_readings(self):
-        max_len = 4
+        max_len = 1#4
         result = []
-        for i in range(len(self.cameraReadings)):
-            if (self.cameraReadings[i].is_blue() and len(result) < max_len):
-                result.append(self.cameraReadings[i].flatten_observations())
+        closestFood = self.get_closest_food()
+
+        if closestFood.is_blue():
+            result.append(closestFood.flatten_observations())
+        # for i in range(len(self.cameraReadings)):
+        #     if (self.cameraReadings[i].is_blue() and len(result) < max_len):
+        #         result.append(self.cameraReadings[i].flatten_observations())
         # for i in range(len(self.cameraReadings)):
         #     if (not self.cameraReadings[i].is_blue() and len(result) < max_len):
         #         result.append(self.cameraReadings[i].flatten_observations())
@@ -390,19 +414,34 @@ class BotObservations:
         if (not other.isValid):
             return False
         
-        blueReadings = list(filter(lambda e: e.is_blue(), self.cameraReadings))
-        otherBlueReadings = list(filter(lambda e: e.is_blue(), other.cameraReadings))
-        if (len(blueReadings) == 0): 
-            return False
-        if (len(otherBlueReadings) == 0):
+        selfClosestFood = self.get_closest_food()
+        otherClosestFood = other.get_closest_food()
+
+        if (selfClosestFood.is_blue() and otherClosestFood.is_blue()):
+            return self.vector_length(selfClosestFood.x, selfClosestFood.y) < self.vector_length(otherClosestFood.x, otherClosestFood.y)
+        if (selfClosestFood.is_blue() and not otherClosestFood.is_blue()):
             return True
+        if (not selfClosestFood.is_blue() and otherClosestFood.is_blue()):
+            return False
+        return False    
+
+
+        # blueReadings = list(filter(lambda e: e.is_blue(), self.cameraReadings))
+        # otherBlueReadings = list(filter(lambda e: e.is_blue(), other.cameraReadings))
+        # if (len(blueReadings) == 0): 
+        #     return False
+        # if (len(otherBlueReadings) == 0):
+        #     return True
         
-        for e in blueReadings:
-            for ee in otherBlueReadings:
-                # if e.distance < ee.distance:
-                if self.vector_length(e.distance, e.angle) < self.vector_length(ee.distance, ee.angle):
-                    return True
-        return False
+        # for e in blueReadings:
+        #     for ee in otherBlueReadings:
+        #         # if e.distance < ee.distance:
+        #         if self.vector_length(e.x, e.y) < self.vector_length(ee.x, ee.y):
+        #             # if (len(blueReadings) == 1):
+        #                 # print("Found close one:", e.x, e.y, ee.x, ee.y, self.vector_length(e.x, e.y) , self.vector_length(ee.x, ee.y))
+        #                 # a = 1
+        #             return True
+        # return False
     
     def has_food(self) -> bool:
         return len(self.cameraReadings) > 0 and len(list(filter(lambda e: e.is_blue(), self.cameraReadings))) > 0
@@ -432,9 +471,9 @@ class BotObservations:
 
 
 class RabReading:
-    def __init__(self, range: float, bearing: float, has_food: bool, see_food: bool) -> None:
-        self.range = range
-        self.bearing = bearing
+    def __init__(self, x: float, y: float, has_food: bool, see_food: bool) -> None:
+        self.x = x
+        self.y = y
         self.has_food = has_food
         self.see_food = see_food
 
@@ -442,18 +481,18 @@ class RabReading:
         if not isinstance(other, RabReading):
             # don't attempt to compare against unrelated types
             return NotImplemented
-        return self.range == other.range and \
-               self.bearing == other.bearing and \
+        return self.x == other.x and \
+               self.y == other.y and \
                self.has_food == other.has_food and \
                self.see_food == other.see_food
     
     def flatten_observations(self):
-        return np.array([self.range, self.bearing, self.has_food, self.see_food])
+        return np.array([self.x, self.y, self.has_food, self.see_food])
 
 class CameraReading:
-    def __init__(self, distance: float, angle: float, r: int, g: int, b: int) -> None:
-        self.distance = distance
-        self.angle = angle
+    def __init__(self, x: float, y: float, r: int, g: int, b: int) -> None:
+        self.x = x
+        self.y = y
         self.r = r
         self.g = g
         self.b = b
@@ -462,14 +501,14 @@ class CameraReading:
         if not isinstance(other, CameraReading):
             # don't attempt to compare against unrelated types
             return NotImplemented
-        return self.distance == other.distance and \
-               self.angle == other.angle and \
+        return self.x == other.x and \
+               self.y == other.y and \
                self.r == other.r and \
                self.g == other.g and \
                self.b == other.b
     
     def flatten_observations(self):
-        return np.array([self.distance, self.angle, int(self.is_blue()), int(self.is_green())])
+        return np.array([self.x, self.y, int(self.is_blue()), int(self.is_green())])
 
     def is_blue(self):
         return self.r == 0 and self.g == 0 and self.b == 255

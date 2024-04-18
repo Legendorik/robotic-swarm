@@ -177,13 +177,15 @@ public:
 
       float mGlobalX;
       float mGlobalY;
+      float mRotationZ;
 
       SStateData();
       void Init(TConfigurationNode& t_node);
       void Reset();
-      inline void Update(float global_x, float global_y){
+      inline void Update(float global_x, float global_y, float rotation_z){
          mGlobalX = global_x;
          mGlobalY = global_y;
+         mRotationZ = rotation_z;
       }
    };
 

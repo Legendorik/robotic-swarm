@@ -29,13 +29,13 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     )
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=320)
-    parser.add_argument('--epoch', type=int, default=100)
+    parser.add_argument('--epoch', type=int, default=150)
     parser.add_argument('--step-per-epoch', type=int, default=1000) #100
     parser.add_argument('--step-per-collect', type=int, default=50) #10 #50
     parser.add_argument('--update-per-step', type=float, default=0.1)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument(
-        '--hidden-sizes', type=int, nargs='*', default=[128, 128, 128, 128]
+        '--hidden-sizes', type=int, nargs='*', default=[256, 128, 128, 128]
     )
     parser.add_argument('--training-num', type=int, default=1) #10
     parser.add_argument('--test-num', type=int, default=1) #10
@@ -74,8 +74,9 @@ def _get_agents(
     agent_learn: Optional[BasePolicy] = None,
     agent_opponent: Optional[BasePolicy] = None,
     optim: Optional[torch.optim.Optimizer] = None,
+    env: PettingZooEnv = None,
 ) -> Tuple[BasePolicy, torch.optim.Optimizer, list]:
-    env = _get_env()
+    env = env if env != None else _get_env()
     observation_space = (
         env.observation_space["observation"]
         if isinstance(env.observation_space, gymnasium.spaces.Dict)
@@ -115,7 +116,9 @@ def _get_agents(
 
     agents = [agent_learn, agent_opponent]
     policy = MultiAgentPolicyManager(agents, env)
-    return policy, optim, env.agents
+    env_agents = env.agents
+    env.close()
+    return policy, optim, env_agents
 
 
 def _get_env():
@@ -208,3 +211,5 @@ if __name__ == "__main__":
     # return result, policy.policies[agents[1]]
     print(f"\n==========Result==========\n{result}")
     print("\n(the trained policy can be accessed via policy.policies[agents[0]])")
+    train_envs.close()
+    test_envs.close()

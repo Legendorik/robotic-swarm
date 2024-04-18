@@ -365,13 +365,15 @@ void CForagingLoopFunctions::moveLedToFood(int i)
 {
    auto x = m_cFoodPos[i].GetX();
    auto y = m_cFoodPos[i].GetY();
+   auto z = x > 2.4 && y > 2.4 ? i * 0.02 : 0;
    if (x > 2.4) {
       x = 2.4;
    }
    if (y > 2.4) {
       y = 2.4;
    }
-   MoveEntity(m_cLeds[i]->GetEmbodiedEntity(), CVector3(x, y, 0), CQuaternion());
+
+   MoveEntity(m_cLeds[i]->GetEmbodiedEntity(), CVector3(x, y, z), CQuaternion(), false, true);
 
 }
 
