@@ -283,7 +283,7 @@ void CFootBotForaging::doReceive(){
 std::string CFootBotForaging::GetPackage(){
    
    std::stringstream package;
-   package << std::fixed << std::setprecision(2);
+   package << std::fixed << std::setprecision(3);
    package << iter << ";" // message id
          << m_sStateData.mGlobalX << ";" << m_sStateData.mGlobalY << ";" << m_sStateData.mRotationZ << ";" // global position
          << m_sStateData.InNest << ";" // is robot in nest
@@ -319,18 +319,28 @@ std::string CFootBotForaging::GetPackage(){
    }
 
    auto cameraReadingSize = cameraReadings.BlobList.size();
+
+   auto cameraReadingBlueSize = 0;
+   for (size_t i = 0; i < cameraReadingSize; i++) {
+      if (cameraReadings.BlobList[i]->Color.GetBlue() == 255) {
+         cameraReadingBlueSize++;
+      }
+   }
    // // send camera sensor data
-   package << cameraReadingSize << ";";
+   package << cameraReadingBlueSize << ";";
    for (size_t i = 0; i < cameraReadingSize; i++)
    {
-      auto cameraVector = CVector2(cameraReadings.BlobList[i]->Distance / 100, cameraReadings.BlobList[i]->Angle);
-      // package << cameraReadings.BlobList[i]->Distance / 100 << ";";
-      // package << cameraReadings.BlobList[i]->Angle.GetValue() << ";";
-      package << cameraVector.GetX() << ";";
-      package << cameraVector.GetY() << ";";
-      package << cameraReadings.BlobList[i]->Color.GetRed() << ";";
-      package << cameraReadings.BlobList[i]->Color.GetGreen() << ";";
-      package << cameraReadings.BlobList[i]->Color.GetBlue() << ";";
+      if (cameraReadings.BlobList[i]->Color.GetBlue() == 255) {
+         auto cameraVector = CVector2(cameraReadings.BlobList[i]->Distance / 100, cameraReadings.BlobList[i]->Angle);
+         // package << cameraReadings.BlobList[i]->Distance / 100 << ";";
+         // package << cameraReadings.BlobList[i]->Angle.GetValue() << ";";
+         package << cameraVector.GetX() << ";";
+         package << cameraVector.GetY() << ";";
+         package << cameraReadings.BlobList[i]->Color.GetRed() << ";";
+         package << cameraReadings.BlobList[i]->Color.GetGreen() << ";";
+         package << cameraReadings.BlobList[i]->Color.GetBlue() << ";";
+      }
+
    }
 
   return package.str();

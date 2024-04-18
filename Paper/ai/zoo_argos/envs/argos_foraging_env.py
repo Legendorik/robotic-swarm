@@ -20,6 +20,9 @@ class State(Enum):
     GETTING_CLOSE = 5
     GETTING_CLOSE_TO_NEST = 6
     GETTING_AWAY_FROM_NEST = 7
+    WEAK_GETTING_CLOSE = 8
+    WEAK_GETTING_CLOSE_TO_NEST = 9
+    WEAK_GETTING_AWAY_FROM_NEST = 10
 
 
 REWARD_MAP = {
@@ -30,7 +33,12 @@ REWARD_MAP = {
     State.GETTING_CLOSE: 2,
     State.GETTING_CLOSE_TO_NEST: 1,
     State.GETTING_AWAY_FROM_NEST: 1,
+    State.WEAK_GETTING_CLOSE: 0.1,
+    State.WEAK_GETTING_CLOSE_TO_NEST: 0.1,
+    State.WEAK_GETTING_AWAY_FROM_NEST: 0.1,
 }
+
+FAST_CHANGE = 0.0085
 
 class ArgosForagingEnv(AECEnv):
     metadata = {'render.modes': ['human', 'no_render'], "name": "ArgosEnv"}
@@ -196,36 +204,43 @@ class ArgosForagingEnv(AECEnv):
         # in_msg = self.argos_io.receive_from(agent_id)
         in_msg = self.argos.receive_from(agent_id)
         in_msg = in_msg.split(";")
-        mapped_observations = BotObservations(in_msg)
+        mapped_obs = BotObservations(in_msg)
+        prev_obs = self.previous_observations[agent]
         # if (mapped_observations.hasFood):
         #     a = 1
         # if (self.iter > 402):
         #     a = 1
         
-        if (mapped_observations.isValid):
-            self.obs_history[agent].append(f"{mapped_observations.iter}: {mapped_observations.xPos}; {mapped_observations.yPos}")
+        if (mapped_obs.isValid):
+            self.obs_history[agent].append(f"{mapped_obs.iter}: {mapped_obs.xPos}; {mapped_obs.yPos}")
+            obs_iter_diff = mapped_obs.iter - prev_obs.iter
             
-            self.observations[agent] = mapped_observations.flatten_observations()
-            if (self.previous_observations[agent] == mapped_observations):
+            self.observations[agent] = mapped_obs.flatten_observations()
+            if (prev_obs == mapped_obs):
                 self.rewards[agent] = 0
-                # print(self.iter,"ALERT SOME FUCK UP ")
             else:
-                if (self.previous_observations[agent].iter > mapped_observations.iter):
-                    print(agent, "OBS RUINED ",self.previous_observations[agent].iter, " > ",  mapped_observations.iter)
+                if (prev_obs.iter >= mapped_obs.iter):
+                    print(agent, "OBS RUINED ",prev_obs.iter, " > ",  mapped_obs.iter)
                     a = 1
-                if (self.previous_observations[agent].hasFood and not mapped_observations.hasFood):
+                if (obs_iter_diff >=2):
+                    print(agent, "TOO BIG STEP", obs_iter_diff)
+                if (prev_obs.hasFood and not mapped_obs.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
                     # print(agent, "ENV", self.env_id, " ACTUALLY DROPPED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
-                elif (not self.previous_observations[agent].hasFood and mapped_observations.hasFood):
+                elif (not prev_obs.hasFood and mapped_obs.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.PICK]
                     # print(agent, "ENV", self.env_id, " ACTUALLY PICKED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
-                elif (mapped_observations.isCollision):
+                elif (mapped_obs.isCollision):
                     self.rewards[agent] = REWARD_MAP[State.BUMP]
-                elif (not mapped_observations.hasFood and mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                elif (not mapped_obs.hasFood and mapped_obs.food_approaching_diff(prev_obs) > FAST_CHANGE * obs_iter_diff):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "closer to food", REWARD_MAP[State.GETTING_CLOSE])
                     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE]
-                elif (not mapped_observations.hasFood and mapped_observations.has_food() and not mapped_observations.is_food_getting_closer(self.previous_observations[agent])):
+                elif (not mapped_obs.hasFood and mapped_obs.food_approaching_diff(prev_obs) > 0):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "weak closer to food", REWARD_MAP[State.WEAK_GETTING_CLOSE])
+                    self.rewards[agent] = REWARD_MAP[State.WEAK_GETTING_CLOSE]
+                elif (not mapped_obs.hasFood and mapped_obs.has_food() and mapped_obs.food_approaching_diff(prev_obs) < 0):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "far from food", -2*REWARD_MAP[State.GETTING_CLOSE])
                     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE]
@@ -235,11 +250,15 @@ class ArgosForagingEnv(AECEnv):
                 # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() < self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
 
-                elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos > self.previous_observations[agent].xPos):
+                elif (not mapped_obs.hasFood and mapped_obs.inNest and mapped_obs.xPos - prev_obs.xPos > FAST_CHANGE * obs_iter_diff):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "from nest", REWARD_MAP[State.GETTING_AWAY_FROM_NEST])
                     self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
-                elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.xPos < self.previous_observations[agent].xPos):
+                elif (not mapped_obs.hasFood and mapped_obs.inNest and mapped_obs.xPos - prev_obs.xPos > 0):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "weak from nest", REWARD_MAP[State.WEAK_GETTING_AWAY_FROM_NEST])
+                    self.rewards[agent] = REWARD_MAP[State.WEAK_GETTING_AWAY_FROM_NEST]
+                elif (not mapped_obs.hasFood and mapped_obs.inNest and mapped_obs.xPos < prev_obs.xPos):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "closer to nest", -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST])
                     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
@@ -249,11 +268,15 @@ class ArgosForagingEnv(AECEnv):
                 # elif (mapped_observations.hasFood and mapped_observations.light_vector_length() < self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
 
-                elif (mapped_observations.hasFood and mapped_observations.xPos < self.previous_observations[agent].xPos):
+                elif (mapped_obs.hasFood and prev_obs.xPos - mapped_obs.xPos > FAST_CHANGE * obs_iter_diff):
                     if (agent_id == 0 and self.render_mode == 'human'):
-                        print(self.iter, "closer to nest with food", REWARD_MAP[State.GETTING_CLOSE_TO_NEST])
+                        print(self.iter, "closer to nest with food", REWARD_MAP[State.GETTING_CLOSE_TO_NEST], )
                     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
-                elif (mapped_observations.hasFood and mapped_observations.xPos > self.previous_observations[agent].xPos):
+                elif (mapped_obs.hasFood and prev_obs.xPos - mapped_obs.xPos > 0):
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "weak closer to nest with food", REWARD_MAP[State.WEAK_GETTING_CLOSE_TO_NEST])
+                    self.rewards[agent] = REWARD_MAP[State.WEAK_GETTING_CLOSE_TO_NEST]
+                elif (mapped_obs.hasFood and mapped_obs.xPos > prev_obs.xPos):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "from nest with food", -2*REWARD_MAP[State.GETTING_CLOSE_TO_NEST])
                     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
@@ -266,8 +289,8 @@ class ArgosForagingEnv(AECEnv):
             self.rewards[agent] = 0
             action = 0
 
-        if (mapped_observations.isValid):
-            self.previous_observations[agent] = mapped_observations
+        if (mapped_obs.isValid):
+            self.previous_observations[agent] = mapped_obs
         # out messages
         velocity = 10
         # if (self.iter < 5):
@@ -410,7 +433,7 @@ class BotObservations:
             result.append(CameraReading(0,0,0,0,0).flatten_observations())
         return np.concatenate(result)
 
-    def is_food_getting_closer(self, other):
+    def food_approaching_diff(self, other):
         if (not other.isValid):
             return False
         
@@ -418,12 +441,12 @@ class BotObservations:
         otherClosestFood = other.get_closest_food()
 
         if (selfClosestFood.is_blue() and otherClosestFood.is_blue()):
-            return self.vector_length(selfClosestFood.x, selfClosestFood.y) < self.vector_length(otherClosestFood.x, otherClosestFood.y)
+            return self.vector_length(otherClosestFood.x, otherClosestFood.y) - self.vector_length(selfClosestFood.x, selfClosestFood.y)
         if (selfClosestFood.is_blue() and not otherClosestFood.is_blue()):
-            return True
+            return 1
         if (not selfClosestFood.is_blue() and otherClosestFood.is_blue()):
-            return False
-        return False    
+            return -1
+        return 0    
 
 
         # blueReadings = list(filter(lambda e: e.is_blue(), self.cameraReadings))
