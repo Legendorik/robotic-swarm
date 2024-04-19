@@ -212,7 +212,7 @@ class ArgosForagingEnv(AECEnv):
         #     a = 1
         
         if (mapped_obs.isValid):
-            self.obs_history[agent].append(f"{mapped_obs.iter}: {mapped_obs.xPos}; {mapped_obs.yPos}")
+            self.obs_history[agent].append(f"{mapped_obs.iter}: {mapped_obs.xPos}; {mapped_obs.yPos}; {mapped_obs.zRot}")
             obs_iter_diff = mapped_obs.iter - prev_obs.iter
             
             self.observations[agent] = mapped_obs.flatten_observations()
@@ -222,8 +222,8 @@ class ArgosForagingEnv(AECEnv):
                 if (prev_obs.iter >= mapped_obs.iter):
                     print(agent, "OBS RUINED ",prev_obs.iter, " > ",  mapped_obs.iter)
                     a = 1
-                if (obs_iter_diff >=2):
-                    print(agent, "TOO BIG STEP", obs_iter_diff)
+                # if (obs_iter_diff >=2 or obs_iter_diff == 0):
+                #     print(agent, "BAD STEP", obs_iter_diff)
                 if (prev_obs.hasFood and not mapped_obs.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
                     # print(agent, "ENV", self.env_id, " ACTUALLY DROPPED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
@@ -324,7 +324,7 @@ class ArgosForagingEnv(AECEnv):
 
         if (self.game_over):
             self.terminations[agent] = True
-            if self._cumulative_rewards[agent] > 800:
+            if agent_id == 0 and self._cumulative_rewards[agent] > 600:
                 with open(f"robot_0_myfile.txt", "w") as file1:
                     file1.write("\n".join(map(str, self.actions_history['robot_0'])))
                     print("DONE!")
@@ -395,7 +395,7 @@ class BotObservations:
             self.isValid = True
         except:
             self.isValid = False
-            print("ALERT: Failed to parse observations")
+            #print("ALERT: Failed to parse observations")
             
 
     def flatten_observations(self):
