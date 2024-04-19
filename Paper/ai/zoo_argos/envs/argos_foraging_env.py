@@ -26,7 +26,7 @@ class State(Enum):
 
 
 REWARD_MAP = {
-    State.MOVE: -1,
+    State.MOVE: -0.5,
     State.BUMP: -15,
     State.PICK: 100,
     State.DROP: 300,
@@ -216,7 +216,7 @@ class ArgosForagingEnv(AECEnv):
             obs_iter_diff = mapped_obs.iter - prev_obs.iter
             
             self.observations[agent] = mapped_obs.flatten_observations()
-            if (prev_obs == mapped_obs):
+            if (obs_iter_diff == 0):
                 self.rewards[agent] = 0
             else:
                 if (prev_obs.iter >= mapped_obs.iter):
@@ -232,6 +232,8 @@ class ArgosForagingEnv(AECEnv):
                     # print(agent, "ENV", self.env_id, " ACTUALLY PICKED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (mapped_obs.isCollision):
                     self.rewards[agent] = REWARD_MAP[State.BUMP]
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "BUMP", REWARD_MAP[State.BUMP])
                 elif (not mapped_obs.hasFood and mapped_obs.food_approaching_diff(prev_obs) > FAST_CHANGE * obs_iter_diff):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "closer to food", REWARD_MAP[State.GETTING_CLOSE])
@@ -318,7 +320,7 @@ class ArgosForagingEnv(AECEnv):
                 self.terminations[agent] = True
                 self.game_over = True
         
-        if (self.iter > 1000):
+        if (self.iter > 1500):
             self.terminations[agent] = True
             self.game_over = True
 
