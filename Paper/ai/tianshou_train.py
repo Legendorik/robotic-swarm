@@ -9,13 +9,14 @@ import torch
 from tianshou.data import Collector, VectorReplayBuffer
 from tianshou.env import DummyVectorEnv
 from tianshou.env.pettingzoo_env import PettingZooEnv
-from tianshou.policy import BasePolicy, DQNPolicy, MultiAgentPolicyManager, RandomPolicy
+from tianshou.policy import BasePolicy, DQNPolicy, MultiAgentPolicyManager, RandomPolicy, RainbowPolicy
 from tianshou.trainer import offpolicy_trainer
 from tianshou.utils.net.common import Net
 from zoo_argos.envs.argos_env import ArgosEnv
 from zoo_argos.envs.argos_foraging_env import ArgosForagingEnv
 from torch.utils.tensorboard import SummaryWriter
 from tianshou.utils import TensorboardLogger
+from tianshou.utils.net.discrete import NoisyLinear
 
 def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -30,12 +31,12 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=320)
     parser.add_argument('--epoch', type=int, default=250)
-    parser.add_argument('--step-per-epoch', type=int, default=1000) #100
+    parser.add_argument('--step-per-epoch', type=int, default=1500) #100
     parser.add_argument('--step-per-collect', type=int, default=50) #10 #50
     parser.add_argument('--update-per-step', type=float, default=0.1)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument(
-        '--hidden-sizes', type=int, nargs='*', default=[256, 128, 128, 128]
+        '--hidden-sizes', type=int, nargs='*', default=[512, 256, 256, 128]
     )
     parser.add_argument('--training-num', type=int, default=1) #10
     parser.add_argument('--test-num', type=int, default=1) #10
@@ -69,6 +70,9 @@ def get_args(watch: bool = False) -> argparse.Namespace:
     parser = get_parser(watch=watch)
     return parser.parse_known_args()[0]
 
+def noisy_linear(x, y):
+    return NoisyLinear(x, y, 0.1)
+
 def _get_agents(
     args: argparse.Namespace = get_args(),
     agent_learn: Optional[BasePolicy] = None,
@@ -84,21 +88,41 @@ def _get_agents(
     )
     if agent_learn is None:
         # model
+        # net = Net(
+        #     state_shape=observation_space.shape or observation_space.n,
+        #     action_shape=env.action_space.shape or env.action_space.n,
+        #     hidden_sizes=args.hidden_sizes,
+        #     device=args.device,
+        # ).to(args.device)
         net = Net(
             state_shape=observation_space.shape or observation_space.n,
             action_shape=env.action_space.shape or env.action_space.n,
             hidden_sizes=args.hidden_sizes,
+            softmax=True,
+            num_atoms=51,
+            dueling_param=({
+                "linear_layer": noisy_linear
+            }, {
+                "linear_layer": noisy_linear
+            }),
             device=args.device,
         ).to(args.device)
         if optim is None:
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
-        agent_learn = DQNPolicy(
+        # agent_learn = DQNPolicy(
+        #     model=net,
+        #     optim=optim,
+        #     discount_factor=args.gamma,
+        #     estimation_step=args.n_step,
+        #     target_update_freq=args.target_update_freq,
+        # )
+        agent_learn = RainbowPolicy(
             model=net,
             optim=optim,
             discount_factor=args.gamma,
             estimation_step=args.n_step,
             target_update_freq=args.target_update_freq,
-        )
+        ).to(args.device)
         # TODO: watch_path & resume_path
         # if args.resume_path:
         #     agent_learn.load_state_dict(torch.load(args.resume_path))
@@ -112,7 +136,7 @@ def _get_agents(
         # if args.resume_path:
         #     agent_opponent.load_state_dict(torch.load(args.resume_path))
         if (args.watch):
-            agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_1.pth'))
+            agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_0.pth'))
 
     agents = [agent_learn, agent_opponent]
     policy = MultiAgentPolicyManager(agents, env)

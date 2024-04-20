@@ -506,7 +506,7 @@ CVector2 CFootBotForaging::CalculateProximityVector() {
 }
 
 bool CFootBotForaging::isCollision(CVector2 proxVector) {
-   if (proxVector.Length() > 0.9) {
+   if (proxVector.Length() > 0.99) {
       return true;
    }
    return false;

@@ -39,6 +39,7 @@ REWARD_MAP = {
 }
 
 FAST_CHANGE = 0.0085
+ROTATION_PART = 8
 
 class ArgosForagingEnv(AECEnv):
     metadata = {'render.modes': ['human', 'no_render'], "name": "ArgosEnv"}
@@ -62,7 +63,7 @@ class ArgosForagingEnv(AECEnv):
                 
         self._action_spaces = {
             # agent: spaces.Box(np.array([0, 0]), np.array([+50, +50]), shape=(2,)) for agent in self.possible_agents
-            agent: spaces.Discrete(9) for agent in self.possible_agents
+            agent: spaces.Discrete(ROTATION_PART + ROTATION_PART + 1, start=-ROTATION_PART) for agent in self.possible_agents
         }
         # self._observation_spaces = {
         #     agent: spaces.Box(0, 256, shape=(1,)) for agent in self.possible_agents
@@ -298,9 +299,10 @@ class ArgosForagingEnv(AECEnv):
         # if (self.iter < 5):
         #     action = 1
         # else:
-        #     action = 0
-        
-        heading = (velocity * cos(action * pi/8), velocity * sin(action * pi/8))
+        #     action = 9
+        if (action > ROTATION_PART):
+            action = ROTATION_PART - action
+        heading = (velocity * cos(action * pi/ROTATION_PART), velocity * sin(action * pi/ROTATION_PART))
         msg = str(self.iter) + ";" + str(heading[0]) + ";" + str(heading[1])
         # if (self.iter == 400):
         #     self.argos.send_to(str(-1) + ";" + "RESET")
@@ -326,7 +328,7 @@ class ArgosForagingEnv(AECEnv):
 
         if (self.game_over):
             self.terminations[agent] = True
-            if agent_id == 0 and self._cumulative_rewards[agent] > 600:
+            if agent_id == 0 and self._cumulative_rewards[agent] > 400:
                 with open(f"robot_0_myfile.txt", "w") as file1:
                     file1.write("\n".join(map(str, self.actions_history['robot_0'])))
                     print("DONE!")
