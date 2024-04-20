@@ -145,11 +145,11 @@
       <controller config="ffc" />
     </foot-bot> -->
 
-    <foot-bot id="fb0">
+    <foot-bot id="fb0" omnidirectional_camera_aperture="80">
       <body position="-1.2,-0.75,0" orientation="0,0,0" />
       <controller config="ffc" />
     </foot-bot>
-    <foot-bot id="fb1">
+    <foot-bot id="fb1" omnidirectional_camera_aperture="80">
       <body position="-1.2,0,0" orientation="0,0,0" />
       <controller config="ffc" />
     </foot-bot>

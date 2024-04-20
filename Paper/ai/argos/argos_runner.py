@@ -98,7 +98,7 @@ class Argos:
         # a = self.argos_process.stdout.readlines()
         # print(a)
         files_id = str(self.files_id)
-        self.argos_process.kill()
+        self.argos_process.terminate()
         for i in range(self.num_robots):
             data_file = files_id + data_fname + str(i)
             actions_file = files_id + actions_fname + str(i)

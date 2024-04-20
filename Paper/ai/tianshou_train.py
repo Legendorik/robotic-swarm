@@ -38,8 +38,8 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     parser.add_argument(
         '--hidden-sizes', type=int, nargs='*', default=[512, 256, 256, 128]
     )
-    parser.add_argument('--training-num', type=int, default=1) #10
-    parser.add_argument('--test-num', type=int, default=1) #10
+    parser.add_argument('--training-num', type=int, default=10) #10
+    parser.add_argument('--test-num', type=int, default=10) #10
     parser.add_argument('--logdir', type=str, default='log')
     parser.add_argument('--render', type=float, default=0.05)
     parser.add_argument(
@@ -132,11 +132,18 @@ def _get_agents(
 
     if agent_opponent is None:
         # agent_opponent = RandomPolicy()
-        agent_opponent = deepcopy(agent_learn)
+        # agent_opponent = deepcopy(agent_learn)
+        agent_opponent = RainbowPolicy(
+            model=net,
+            optim=optim,
+            discount_factor=args.gamma,
+            estimation_step=args.n_step,
+            target_update_freq=args.target_update_freq,
+        ).to(args.device)
         # if args.resume_path:
         #     agent_opponent.load_state_dict(torch.load(args.resume_path))
         if (args.watch):
-            agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_0.pth'))
+            agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_1.pth'))
 
     agents = [agent_learn, agent_opponent]
     policy = MultiAgentPolicyManager(agents, env)

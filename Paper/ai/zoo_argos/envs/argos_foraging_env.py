@@ -1,6 +1,7 @@
 from enum import Enum
 from math import cos, pi, sin
 import math
+import os
 from time import sleep
 import gymnasium as gym
 import numpy as np
@@ -53,6 +54,7 @@ class ArgosForagingEnv(AECEnv):
         self.actions_history = {"robot_0": [], "robot_1": []}
         self.obs_history = {"robot_0": [], "robot_1": []}
         self.env_id = 0
+        self.delivered_food = 0
 
         self.possible_agents = ["robot_" + str(r) for r in range(self.num_robots)]
         # optional: a mapping between agent name and ID
@@ -150,8 +152,14 @@ class ArgosForagingEnv(AECEnv):
             # self.argos.kill()
             self.argos.send_to(str(-1) + ";" + "RESET")
             for i in range(1, self.num_robots):
-                self.argos.send_to(str(-1)+ ";" + "RESET")
+                self.argos.send_to(str(-1)+ ";" + "RESET", i)
             sleep(.05)
+            while (not self.argos.receive_from(0).startswith('0')):
+                print("I HATE THIS", self.argos.receive_from(0))
+                self.argos.send_to(str(-1) + ";" + "RESET")
+                sleep(1)
+                # os.sched_yield()
+                # self.reset()
             # self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
 
         self.actions_history = {"robot_0": [], "robot_1": []}
@@ -165,6 +173,7 @@ class ArgosForagingEnv(AECEnv):
         self.infos = {agent: {} for agent in self.agents}
         self.state = {agent: None for agent in self.agents}
         self.env_id = self.env_id + 1
+        self.delivered_food = 0
 
         self.observations = {agent: BotObservations([]).flatten_observations() for agent in self.agents}
         self.previous_observations = {agent: BotObservations([]) for agent in self.agents}
@@ -211,7 +220,8 @@ class ArgosForagingEnv(AECEnv):
         #     a = 1
         # if (self.iter > 402):
         #     a = 1
-        
+        if (not mapped_obs.isValid):
+            self.obs_history[agent].append(f"NOT VALID!!!!! {mapped_obs.iter if hasattr(mapped_obs, 'iter') else ''}")
         if (mapped_obs.isValid):
             self.obs_history[agent].append(f"{mapped_obs.iter}: {mapped_obs.xPos}; {mapped_obs.yPos}; {mapped_obs.zRot}")
             obs_iter_diff = mapped_obs.iter - prev_obs.iter
@@ -227,6 +237,7 @@ class ArgosForagingEnv(AECEnv):
                 #     print(agent, "BAD STEP", obs_iter_diff)
                 if (prev_obs.hasFood and not mapped_obs.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
+                    self.delivered_food += 1
                     # print(agent, "ENV", self.env_id, " ACTUALLY DROPPED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (not prev_obs.hasFood and mapped_obs.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.PICK]
@@ -317,12 +328,20 @@ class ArgosForagingEnv(AECEnv):
         # if (self.iter % 199 == 0 or self.iter % 199 == 1 ): 
         #     print(self.iter, "; AGENT: ", agent, "  IN MESSAGE: ", in_msg, "  OUT MESSAGE: ", msg, " REWARD: ", self.rewards[agent], " CUMULATIVE REWARD: ", self._cumulative_rewards[agent] ) 
 
-        if (self._cumulative_rewards[agent] < -400):
-            if (agent_id == 0):
-                self.terminations[agent] = True
-                self.game_over = True
+        if (agent_id == 0 and self._cumulative_rewards[agent] < -400):
+            # if (agent_id == 0):
+            self.terminations[agent] = True
+            self.game_over = True
+        # if (agent_id == 1 and self._cumulative_rewards[agent] < -600):
+        #     # if (agent_id == 0):
+        #     self.terminations[agent] = True
+        #     self.game_over = True
         
         if (self.iter > 1500):
+            self.terminations[agent] = True
+            self.game_over = True
+
+        if (self.delivered_food >= 5):
             self.terminations[agent] = True
             self.game_over = True
 
