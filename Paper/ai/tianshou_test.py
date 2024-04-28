@@ -20,8 +20,7 @@ def watch(args: argparse.Namespace = get_args(watch = True),) -> None:
     # policy.policies[agents[0]].set_eps(args.eps_test) ?
     collector = Collector(policy, env, exploration_noise=True)
     result = collector.collect(n_episode=1, render=args.render)
-    rews, lens = result["rews"], result["lens"]
-    print(f"Final reward: {rews[:, 0].mean()}, length: {lens.mean()}")
+    print(f"Final reward: {result.returns_stat}, length: {result.lens_stat}")
     env.close()
 
 

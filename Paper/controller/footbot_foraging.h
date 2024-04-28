@@ -356,6 +356,8 @@ private:
    /* The food data */
    SFoodData m_sFoodData;
 
+   bool doReceiveHelper();
+
 
    int m_id;
    std::time_t start_time = std::time(nullptr);

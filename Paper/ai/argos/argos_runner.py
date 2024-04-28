@@ -46,7 +46,7 @@ class Argos:
             
         
         
-        # threading.Thread(target=self.start, daemon=True).start()
+        threading.Thread(target=self.start, daemon=True).start()
 
     def create_files(self):
         files_id = str(self.files_id)
@@ -92,7 +92,8 @@ class Argos:
     def start(self):
         while not self.argos_process.poll():
             #print("Running...")
-            sleep(.1)
+            sleep(1)
+        print("PROCESS", self.files_id, "HAS BEEN TERMINATED", self.argos_process.returncode)
 
     def kill(self):
         # a = self.argos_process.stdout.readlines()

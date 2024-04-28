@@ -149,15 +149,18 @@ class ArgosForagingEnv(AECEnv):
             
             # self.argos_io = ArgosIO(self.num_robots, verbose=False)
         else:
+            # print("TRY TO RESET", self.argos.files_id)
             # self.argos.kill()
             self.argos.send_to(str(-1) + ";" + "RESET")
             for i in range(1, self.num_robots):
                 self.argos.send_to(str(-1)+ ";" + "RESET", i)
-            sleep(.05)
-            while (not self.argos.receive_from(0).startswith('0')):
-                print("I HATE THIS", self.argos.receive_from(0))
-                self.argos.send_to(str(-1) + ";" + "RESET")
-                sleep(1)
+            sleep(.15)
+            if (not self.argos.receive_from(0).startswith('0')):
+                print("I HATE THIS", self.argos.files_id, self.argos.receive_from(0))
+                # self.argos.send_to(str(-1) + ";" + "RESET")
+                # for i in range(1, self.num_robots):
+                #     self.argos.send_to(str(-1)+ ";" + "RESET", i)
+                # sleep(1)
                 # os.sched_yield()
                 # self.reset()
             # self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
@@ -193,6 +196,7 @@ class ArgosForagingEnv(AECEnv):
         agent = self.agent_selection
         self.actions_history[agent].append(f"{self.iter}: {action}")
         agent_id = self.agent_name_mapping[agent]
+        startingProblem = False
         if (
             self.terminations[self.agent_selection]
             or self.truncations[self.agent_selection]
@@ -228,7 +232,13 @@ class ArgosForagingEnv(AECEnv):
             
             self.observations[agent] = mapped_obs.flatten_observations()
             if (obs_iter_diff == 0):
+                # print("Same iter!",self.argos.files_id, mapped_obs.iter)
                 self.rewards[agent] = 0
+            elif (self.iter == 1 and mapped_obs.iter != 0):
+                print("We have a starting problem")
+                self.rewards[agent] = 0
+                startingProblem = True
+                self.iter-=1
             else:
                 if (prev_obs.iter >= mapped_obs.iter):
                     print(agent, "OBS RUINED ",prev_obs.iter, " > ",  mapped_obs.iter)
@@ -321,7 +331,10 @@ class ArgosForagingEnv(AECEnv):
         #         self.argos.send_to(str(-1)+ ";" + "RESET")
         #     sleep(.05)
         # else:
-        self.argos.send_to(msg, agent_id)
+        if (startingProblem):
+            self.argos.send_to(str(-1) + ";" + "RESET", agent_id)
+        else:
+            self.argos.send_to(msg, agent_id)
 
         # print(self.iter, "; REWARD: ", self.rewards[agent])
 
@@ -347,7 +360,7 @@ class ArgosForagingEnv(AECEnv):
 
         if (self.game_over):
             self.terminations[agent] = True
-            if agent_id == 0 and self._cumulative_rewards[agent] > 400:
+            if agent_id == 0 and self._cumulative_rewards[agent] > -400:
                 with open(f"robot_0_myfile.txt", "w") as file1:
                     file1.write("\n".join(map(str, self.actions_history['robot_0'])))
                     print("DONE!")

@@ -14,8 +14,6 @@
 #include <string>
 #include <boost/algorithm/string.hpp>
 
-
-
 /****************************************/
 /****************************************/
 
@@ -236,9 +234,9 @@ void CFootBotForaging::doReceive(){
   std::vector<std::string> result;
   boost::split(result, buf, boost::is_any_of(";"));
   auto time = std::time(nullptr);
-//   std::cout << std::ctime(&time) << " " << m_id << " " << last_received_iter  << " RECEIVE: $" << buf << "$" << std::endl;
+  // std::cout << std::ctime(&time) << " " << m_id << " " << last_received_iter  << " RECEIVE: $" << buf << "$" << std::endl;
   if (!result.empty() && !(result.size() == 1 && result[0].empty())) {
-   
+     // std::cout << std::ctime(&time) << " " << m_id << " " << last_received_iter  << " RECEIVE: $" << buf << "$" << std::endl;
     if (last_received_iter != result[0]) {
       last_received_iter = result[0];
 
@@ -247,7 +245,7 @@ void CFootBotForaging::doReceive(){
          SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
       }
       else if (result.size() >= 2) {
-         std::cout<< m_id << " RECEIVE: " << buf << std::endl;
+         // std::cout<< m_id << " RECEIVE: " << buf << std::endl;
          if (result[1] == "RESET") {
             if (m_id == 0) {
                CSimulator &cSimulator = CSimulator::GetInstance();
@@ -259,23 +257,62 @@ void CFootBotForaging::doReceive(){
 
          }
       }
-      
     }
     else {
-      // sched_yield();
-      nanosleep((const struct timespec[]){{0, 1000000L}}, NULL); //100000L
-      // std::cout<< m_id <<" YIELD "<< buf << std::endl;
-      // if (result[1] == "RESET") {
-         
-      // } else {
-         doReceive();
-      // }
-      
+      while (true)
+      {
+         nanosleep((const struct timespec[]){{0, 500000L}}, NULL); //100000L
+         if (doReceiveHelper()) {
+            break;
+         }
+      }
     }
 
   }
   
 }
+
+bool CFootBotForaging::doReceiveHelper(){
+  char buf[file_size];
+  strncpy(buf, actions_mmap, file_size);
+  std::vector<std::string> result;
+  boost::split(result, buf, boost::is_any_of(";"));
+  auto time = std::time(nullptr);
+  // std::cout << std::ctime(&time) << " " << m_id << " " << last_received_iter  << " RECEIVE: $" << buf << "$" << std::endl;
+
+  if (!result.empty() && !(result.size() == 1 && result[0].empty())) {
+     // std::cout << std::ctime(&time) << " " << m_id << " " << last_received_iter  << " RECEIVE: $" << buf << "$" << std::endl;
+    if (last_received_iter != result[0]) {
+      last_received_iter = result[0];
+
+      // std::cout<< m_id << " RECEIVE: " << buf << std::endl;
+      if (result.size() >= 3) {
+         SetWheelSpeedsFromVector(CVector2(std::stof(result[1]), std::stof(result[2])));
+      }
+      else if (result.size() >= 2) {
+         // std::cout<< m_id << " RECEIVE: " << buf << std::endl;
+         if (result[1] == "RESET") {
+            if (m_id == 0) {
+               CSimulator &cSimulator = CSimulator::GetInstance();
+               cSimulator.Reset();
+            }
+            else {
+               Reset();
+            }
+
+         }
+      }
+    }
+    else {
+      return false;
+    }
+
+  }
+
+  return true;
+}
+
+
 
 /****************************************/
 /****************************************/

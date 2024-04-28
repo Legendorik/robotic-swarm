@@ -10,7 +10,7 @@ from tianshou.data import Collector, VectorReplayBuffer
 from tianshou.env import DummyVectorEnv
 from tianshou.env.pettingzoo_env import PettingZooEnv
 from tianshou.policy import BasePolicy, DQNPolicy, MultiAgentPolicyManager, RandomPolicy, RainbowPolicy
-from tianshou.trainer import offpolicy_trainer
+from tianshou.trainer import OffpolicyTrainer
 from tianshou.utils.net.common import Net
 from zoo_argos.envs.argos_env import ArgosEnv
 from zoo_argos.envs.argos_foraging_env import ArgosForagingEnv
@@ -30,7 +30,7 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     )
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=320)
-    parser.add_argument('--epoch', type=int, default=250)
+    parser.add_argument('--epoch', type=int, default=150) # try 150 (loss)
     parser.add_argument('--step-per-epoch', type=int, default=1500) #100
     parser.add_argument('--step-per-collect', type=int, default=50) #10 #50
     parser.add_argument('--update-per-step', type=float, default=0.1)
@@ -119,6 +119,7 @@ def _get_agents(
         agent_learn = RainbowPolicy(
             model=net,
             optim=optim,
+            action_space=env.action_space,
             discount_factor=args.gamma,
             estimation_step=args.n_step,
             target_update_freq=args.target_update_freq,
@@ -136,6 +137,7 @@ def _get_agents(
         agent_opponent = RainbowPolicy(
             model=net,
             optim=optim,
+            action_space=env.action_space,
             discount_factor=args.gamma,
             estimation_step=args.n_step,
             target_update_freq=args.target_update_freq,
@@ -146,7 +148,7 @@ def _get_agents(
             agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_1.pth'))
 
     agents = [agent_learn, agent_opponent]
-    policy = MultiAgentPolicyManager(agents, env)
+    policy = MultiAgentPolicyManager(policies=agents, env=env)
     env_agents = env.agents
     env.close()
     return policy, optim, env_agents
@@ -220,7 +222,7 @@ if __name__ == "__main__":
         return rews[:, 0]
 
     # ======== Step 5: Run the trainer =========
-    result = offpolicy_trainer(
+    result = OffpolicyTrainer(
         policy=policy,
         train_collector=train_collector,
         test_collector=test_collector,
@@ -237,7 +239,7 @@ if __name__ == "__main__":
         logger=logger,
         test_in_train=False,
         reward_metric=reward_metric,
-    )
+    ).run()
 
     # return result, policy.policies[agents[1]]
     print(f"\n==========Result==========\n{result}")
