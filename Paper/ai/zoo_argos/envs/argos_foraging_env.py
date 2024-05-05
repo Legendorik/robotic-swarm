@@ -40,7 +40,10 @@ REWARD_MAP = {
 }
 
 FAST_CHANGE = 0.0085
-ROTATION_PART = 8
+ROTATION_PART = 1
+MAX_ITER = 1500
+MIN_REWARD = -400
+TARGET = 5
 
 class ArgosForagingEnv(AECEnv):
     metadata = {'render.modes': ['human', 'no_render'], "name": "ArgosEnv"}
@@ -75,14 +78,14 @@ class ArgosForagingEnv(AECEnv):
         self._observation_spaces = {
             agent: spaces.flatten_space(spaces.Dict({
                 "pos": spaces.Box(-2, 1, shape=(2,), dtype=float), 
-                "rot": spaces.Box(-4, 4, shape=(1,), dtype=float), 
+                "rot": spaces.Box(-1, 1, shape=(2,), dtype=float), 
                 "light_vector": spaces.Box(-2, 1, shape=(2,), dtype=float), 
                 "in_nest": spaces.Discrete(1),
                 "has_food": spaces.Discrete(1),
                 "prox_vector": spaces.Box(-2, 1, shape=(2,), dtype=float), 
                 "is_collision": spaces.Discrete(1),
                 "rab_readings": spaces.Box(-2, 1, (self.num_robots -1, 4), dtype=float),
-                "camera_readings": spaces.Box(-2, 1, (1, 4), dtype=float),
+                "camera_readings": spaces.Box(-2, 1, (1, 3), dtype=float),
             })) for agent in self.possible_agents
         }
 
@@ -229,6 +232,14 @@ class ArgosForagingEnv(AECEnv):
         if (mapped_obs.isValid):
             self.obs_history[agent].append(f"{mapped_obs.iter}: {mapped_obs.xPos}; {mapped_obs.yPos}; {mapped_obs.zRot}")
             obs_iter_diff = mapped_obs.iter - prev_obs.iter
+
+
+            # if (agent_id == 0 and len(mapped_obs.cameraReadings) != 0):
+            #     print(mapped_obs.cameraReadings[0].x, mapped_obs.cameraReadings[0].y)
+
+            # if (agent_id == 0):
+            #     print(cos(mapped_obs.zRot), sin(mapped_obs.zRot))
+
             
             self.observations[agent] = mapped_obs.flatten_observations()
             if (obs_iter_diff == 0):
@@ -268,11 +279,17 @@ class ArgosForagingEnv(AECEnv):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "far from food", -2*REWARD_MAP[State.GETTING_CLOSE])
                     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE]
+
+
+                # DONT USE
                 # По какой-то причине вектор действительно увеличивается, когда робот едет к выходу из гнезда. Этот эффект исчезает примерно на границе гнезда с остальным пространством
                 # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
                 # elif (not mapped_observations.hasFood and mapped_observations.inNest and mapped_observations.light_vector_length() < self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
+
+
+
 
                 elif (not mapped_obs.hasFood and mapped_obs.inNest and mapped_obs.xPos - prev_obs.xPos > FAST_CHANGE * obs_iter_diff):
                     if (agent_id == 0 and self.render_mode == 'human'):
@@ -287,10 +304,14 @@ class ArgosForagingEnv(AECEnv):
                         print(self.iter, "closer to nest", -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST])
                     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_AWAY_FROM_NEST]
 
+
+                # DONT USE
                 # elif (mapped_observations.hasFood and mapped_observations.light_vector_length() > self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
                 # elif (mapped_observations.hasFood and mapped_observations.light_vector_length() < self.previous_observations[agent].light_vector_length()):
                 #     self.rewards[agent] = -2*REWARD_MAP[State.GETTING_CLOSE_TO_NEST]
+
+
 
                 elif (mapped_obs.hasFood and prev_obs.xPos - mapped_obs.xPos > FAST_CHANGE * obs_iter_diff):
                     if (agent_id == 0 and self.render_mode == 'human'):
@@ -308,7 +329,7 @@ class ArgosForagingEnv(AECEnv):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "just move", REWARD_MAP[State.MOVE])
                     self.rewards[agent] = REWARD_MAP[State.MOVE]
-                # self.rewards[agent] = 1 if self.previous_observations[agent][0] < self.observations[agent][0] else -1
+
         else:
             self.rewards[agent] = 0
             action = 0
@@ -341,7 +362,7 @@ class ArgosForagingEnv(AECEnv):
         # if (self.iter % 199 == 0 or self.iter % 199 == 1 ): 
         #     print(self.iter, "; AGENT: ", agent, "  IN MESSAGE: ", in_msg, "  OUT MESSAGE: ", msg, " REWARD: ", self.rewards[agent], " CUMULATIVE REWARD: ", self._cumulative_rewards[agent] ) 
 
-        if (agent_id == 0 and self._cumulative_rewards[agent] < -400):
+        if (agent_id == 0 and self._cumulative_rewards[agent] < MIN_REWARD):
             # if (agent_id == 0):
             self.terminations[agent] = True
             self.game_over = True
@@ -350,17 +371,18 @@ class ArgosForagingEnv(AECEnv):
         #     self.terminations[agent] = True
         #     self.game_over = True
         
-        if (self.iter > 1500):
+        if (self.iter > MAX_ITER):
             self.terminations[agent] = True
             self.game_over = True
 
-        if (self.delivered_food >= 5):
+        if (self.delivered_food >= TARGET):
             self.terminations[agent] = True
             self.game_over = True
 
         if (self.game_over):
+            # print('REWARD FROM ROBOTS:', agent_id, self._cumulative_rewards[agent])
             self.terminations[agent] = True
-            if agent_id == 0 and self._cumulative_rewards[agent] > -400:
+            if agent_id == 0 and self._cumulative_rewards[agent] > 200:
                 with open(f"robot_0_myfile.txt", "w") as file1:
                     file1.write("\n".join(map(str, self.actions_history['robot_0'])))
                     print("DONE!")
@@ -375,6 +397,8 @@ class ArgosForagingEnv(AECEnv):
         if self._agent_selector.is_last():
             self._accumulate_rewards()
             self._clear_rewards()
+
+
 
 
 
@@ -419,15 +443,16 @@ class BotObservations:
             next_index += 1
 
             for i in range(cameraReadingsSize):
-                if (len(raw_observations) > next_index + 4):
+                if (len(raw_observations) > next_index + 5):
                     self.cameraReadings.append(CameraReading(
                         x=float(raw_observations[next_index]),
                         y=float(raw_observations[next_index+1]),
-                        r=int(raw_observations[next_index+2]),
-                        g=int(raw_observations[next_index+3]),
-                        b=int(raw_observations[next_index+4]),
+                        angle=float(raw_observations[next_index+2]),
+                        r=int(raw_observations[next_index+3]),
+                        g=int(raw_observations[next_index+4]),
+                        b=int(raw_observations[next_index+5]),
                     ))
-                    next_index += 5
+                    next_index += 6
             self.isValid = True
         except:
             self.isValid = False
@@ -435,7 +460,7 @@ class BotObservations:
             
 
     def flatten_observations(self):
-        return np.concatenate([ [self.xPos, self.yPos, self.zRot, self.xLight, self.yLight, 
+        return np.concatenate([ [self.xPos, self.yPos, cos(self.zRot), sin(self.zRot), self.xLight, self.yLight, 
                                  int(self.inNest), int(self.hasFood), self.xProx, self.yProx, int(self.isCollision)], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
     
     def get_max_len_rab_readings(self):
@@ -450,7 +475,7 @@ class BotObservations:
     
     def get_closest_food(self):
         return functools.reduce(lambda a, b: b if b.is_blue() and self.vector_length(b.x, b.y) < self.vector_length(a.x, a.y) else a, 
-                                    self.cameraReadings, CameraReading(5, 5, 0, 0, 0))
+                                    self.cameraReadings, CameraReading(5, 5, 0, 0, 0, 0))
     
     def get_max_len_camera_readings(self):
         max_len = 1#4
@@ -466,7 +491,7 @@ class BotObservations:
         #     if (not self.cameraReadings[i].is_blue() and len(result) < max_len):
         #         result.append(self.cameraReadings[i].flatten_observations())
         for i in range(max_len - len(result)):
-            result.append(CameraReading(0,0,0,0,0).flatten_observations())
+            result.append(CameraReading(0,0,0,0,0,0).flatten_observations())
         return np.concatenate(result)
 
     def food_approaching_diff(self, other):
@@ -549,9 +574,10 @@ class RabReading:
         return np.array([self.x, self.y, self.has_food, self.see_food])
 
 class CameraReading:
-    def __init__(self, x: float, y: float, r: int, g: int, b: int) -> None:
+    def __init__(self, x: float, y: float, angle: float, r: int, g: int, b: int) -> None:
         self.x = x
         self.y = y
+        self.angle = angle
         self.r = r
         self.g = g
         self.b = b
@@ -562,12 +588,13 @@ class CameraReading:
             return NotImplemented
         return self.x == other.x and \
                self.y == other.y and \
+               self.angle == other.angle and \
                self.r == other.r and \
                self.g == other.g and \
                self.b == other.b
     
     def flatten_observations(self):
-        return np.array([self.x, self.y, int(self.is_blue()), int(self.is_green())])
+        return np.array([self.x, self.y, int(self.is_blue())])
 
     def is_blue(self):
         return self.r == 0 and self.g == 0 and self.b == 255

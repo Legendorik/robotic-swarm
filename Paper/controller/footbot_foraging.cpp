@@ -373,6 +373,7 @@ std::string CFootBotForaging::GetPackage(){
          // package << cameraReadings.BlobList[i]->Angle.GetValue() << ";";
          package << cameraVector.GetX() << ";";
          package << cameraVector.GetY() << ";";
+         package << cameraReadings.BlobList[i]->Angle.GetValue() << ";";
          package << cameraReadings.BlobList[i]->Color.GetRed() << ";";
          package << cameraReadings.BlobList[i]->Color.GetGreen() << ";";
          package << cameraReadings.BlobList[i]->Color.GetBlue() << ";";

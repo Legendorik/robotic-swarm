@@ -1,15 +1,15 @@
 from time import sleep, time
 from zoo_argos.envs.argos_env import ArgosEnv
 from zoo_argos.envs.argos_foraging_env import ArgosForagingEnv
-env = ArgosForagingEnv(render_mode='human')
+env = ArgosForagingEnv(render_mode='human', verbose=False)
 # env = ArgosEnv(render_mode='no_render')
 # env = ArgosEnv(render_mode='human')
 env.reset()
 
-# with open("myfile.txt", "r") as file1:
-#     actions_history = file1.read()
-# actions_history = actions_history.split(",")
-# actions_history = list(map(int, actions_history))
+with open("robot_0_myfile.txt", "r") as file1:
+    actions_history = file1.readlines()
+actions_history = list(map(lambda e: e.split(': ')[1].strip('\n\r'), actions_history))
+actions_history = list(map(int, actions_history))
 
 start_time = time()
 cur_time = time()
@@ -17,7 +17,7 @@ iter = 0
 for agent in env.agent_iter(max_iter=2000):
     if (iter == 2):
         start_time = time()
-    # action_from_history = actions_history[iter]
+    action_from_history = actions_history[iter//2]
     iter += 1
     cur_time = time()
     diff_time = cur_time - start_time
@@ -27,12 +27,12 @@ for agent in env.agent_iter(max_iter=2000):
     # print('Per second: ', iter_per_second)
     observation, reward, termination, truncation, info = env.last()
     # print('Observation shape', observation.shape, env.observation_space(agent))
-    print('Agent [', agent, '] sees: ', observation)
-    print('Agent [', agent, '] reward: ', reward)
+    #print('Agent [', agent, '] sees: ', observation)
+    #print('Agent [', agent, '] reward: ', reward)
     if termination or truncation:
         action = None
     else:
-        action = env.action_space(agent).sample() # this is where you would insert your policy
+        action = action_from_history#env.action_space(agent).sample() # this is where you would insert your policy
     # print('Agent action', agent, action)
     env.step(action)
     if (env.render_mode == 'human'):

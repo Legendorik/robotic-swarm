@@ -24,13 +24,13 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     parser.add_argument('--eps-test', type=float, default=0.05)
     parser.add_argument('--eps-train', type=float, default=0.1)
     parser.add_argument('--buffer-size', type=int, default=20000)
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument(
-        '--gamma', type=float, default=0.9, help='a smaller gamma favors earlier win'
+        '--gamma', type=float, default=0.99, help='a smaller gamma favors earlier win'
     )
     parser.add_argument('--n-step', type=int, default=3)
     parser.add_argument('--target-update-freq', type=int, default=320)
-    parser.add_argument('--epoch', type=int, default=150) # try 150 (loss)
+    parser.add_argument('--epoch', type=int, default=150)
     parser.add_argument('--step-per-epoch', type=int, default=1500) #100
     parser.add_argument('--step-per-collect', type=int, default=50) #10 #50
     parser.add_argument('--update-per-step', type=float, default=0.1)
@@ -219,6 +219,7 @@ if __name__ == "__main__":
         #set eps for all policies
 
     def reward_metric(rews):
+        # print('REWARD FROM REWARD METRIC:', rews[:, 0])
         return rews[:, 0]
 
     # ======== Step 5: Run the trainer =========
