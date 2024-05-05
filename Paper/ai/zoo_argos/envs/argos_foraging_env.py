@@ -48,6 +48,7 @@ REWARD_MAP = {
 FAST_CHANGE = 0.0085
 ROTATION_PART = 1
 MAX_ITER = 1500
+MAX_ITER_STEP = 500
 MIN_REWARD = -400
 TARGET = 5
 
@@ -102,6 +103,7 @@ class ArgosForagingEnv(AECEnv):
         self.render_mode = render_mode
 
         self.iter = 0
+        self.max_iter = MAX_ITER
 
         self.previous_observations = None
 
@@ -180,6 +182,7 @@ class ArgosForagingEnv(AECEnv):
 
 
         self.iter = 0
+        self.max_iter = MAX_ITER
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
@@ -337,6 +340,9 @@ class ArgosForagingEnv(AECEnv):
                 if (prev_obs.hasFood and not mapped_obs.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
                     self.delivered_food += 1
+                    if (self.delivered_food >=2):
+                        self.rewards[agent]+=50*(self.delivered_food-1)
+                        # self.max_iter += MAX_ITER_STEP
                     # print(agent, "ENV", self.env_id, " ACTUALLY DROPPED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (not prev_obs.hasFood and mapped_obs.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.PICK]
@@ -472,7 +478,7 @@ class ArgosForagingEnv(AECEnv):
         #     self.terminations[agent] = True
         #     self.game_over = True
         
-        if (self.iter > MAX_ITER):
+        if (self.iter > self.max_iter):
             self.terminations[agent] = True
             self.game_over = True
 

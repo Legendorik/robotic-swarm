@@ -45,7 +45,7 @@ def get_parser(watch: bool = False) -> argparse.ArgumentParser:
     parser.add_argument(
         '--win-condition',
         type=float,
-        default=2000,
+        default=5000,
     )
     parser.add_argument(
         '--watch',
@@ -88,42 +88,45 @@ def _get_agents(
     )
     if agent_learn is None:
         # model
-        # net = Net(
-        #     state_shape=observation_space.shape or observation_space.n,
-        #     action_shape=env.action_space.shape or env.action_space.n,
-        #     hidden_sizes=args.hidden_sizes,
-        #     device=args.device,
-        # ).to(args.device)
         net = Net(
             state_shape=observation_space.shape or observation_space.n,
             action_shape=env.action_space.shape or env.action_space.n,
             hidden_sizes=args.hidden_sizes,
-            softmax=True,
-            num_atoms=51,
-            dueling_param=({
-                "linear_layer": noisy_linear
-            }, {
-                "linear_layer": noisy_linear
-            }),
             device=args.device,
         ).to(args.device)
+        # net = Net(
+        #     state_shape=observation_space.shape or observation_space.n,
+        #     action_shape=env.action_space.shape or env.action_space.n,
+        #     hidden_sizes=args.hidden_sizes,
+        #     softmax=True,
+        #     num_atoms=51,
+        #     dueling_param=({
+        #         "linear_layer": noisy_linear
+        #     }, {
+        #         "linear_layer": noisy_linear
+        #     }),
+        #     device=args.device,
+        # ).to(args.device)
         if optim is None:
             optim = torch.optim.Adam(net.parameters(), lr=args.lr)
-        # agent_learn = DQNPolicy(
-        #     model=net,
-        #     optim=optim,
-        #     discount_factor=args.gamma,
-        #     estimation_step=args.n_step,
-        #     target_update_freq=args.target_update_freq,
-        # )
-        agent_learn = RainbowPolicy(
+        agent_learn = DQNPolicy(
             model=net,
             optim=optim,
             action_space=env.action_space,
+            is_double=False,
             discount_factor=args.gamma,
             estimation_step=args.n_step,
             target_update_freq=args.target_update_freq,
-        ).to(args.device)
+        )
+        
+        # agent_learn = RainbowPolicy(
+        #     model=net,
+        #     optim=optim,
+        #     action_space=env.action_space,
+        #     discount_factor=args.gamma,
+        #     estimation_step=args.n_step,
+        #     target_update_freq=args.target_update_freq,
+        # ).to(args.device)
         # TODO: watch_path & resume_path
         # if args.resume_path:
         #     agent_learn.load_state_dict(torch.load(args.resume_path))
@@ -134,6 +137,7 @@ def _get_agents(
     if agent_opponent is None:
         # agent_opponent = RandomPolicy(action_space=env.action_space)
         # agent_opponent = deepcopy(agent_learn)
+        # agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_0 5(actually good).pth'))
         net2 = Net(
             state_shape=observation_space.shape or observation_space.n,
             action_shape=env.action_space.shape or env.action_space.n,
@@ -161,6 +165,7 @@ def _get_agents(
         #     agent_opponent.load_state_dict(torch.load(args.resume_path))
         if (args.watch):
             agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_1.pth'))
+            # agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_1 5 (actually good).pth'))
 
     agents = [agent_learn, agent_opponent]
     policy = MultiAgentPolicyManager(policies=agents, env=env)

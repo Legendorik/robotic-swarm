@@ -25,8 +25,8 @@ void CForagingQTUserFunctions::Draw(CFootBotEntity& c_entity) {
          0.05f,
          CColor::BLACK);
    }
-   auto lightVector = cController.CalculateTrueVectorToLight();
-   DrawRay(CRay3(CVector3(0, 0, 0.3), CVector3(lightVector.GetX(), lightVector.GetY(), 0.3)));
+   // auto lightVector = cController.CalculateTrueVectorToLight();
+   // DrawRay(CRay3(CVector3(0, 0, 0.3), CVector3(lightVector.GetX(), lightVector.GetY(), 0.3)));
 }
 
 /****************************************/
