@@ -253,6 +253,8 @@ public:
    }
 
    std::string GetPackage();
+   CVector2 CalculateTrueVectorToLight();
+   CVector2 CalculateVectorToLight();
 
 private:
 
@@ -268,8 +270,8 @@ private:
     * Calculates the vector to the light. Used to perform
     * phototaxis and antiphototaxis.
     */
-   CVector2 CalculateVectorToLight();
-   CVector2 CalculateTrueVectorToLight();
+
+
    CVector2 CalculateProximityVector();
    bool isCollision(CVector2 proxVector);
 

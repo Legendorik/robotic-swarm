@@ -132,11 +132,26 @@ def _get_agents(
             agent_learn.load_state_dict(torch.load('./log/ttt/dqn/policy_0.pth'))
 
     if agent_opponent is None:
-        # agent_opponent = RandomPolicy()
+        # agent_opponent = RandomPolicy(action_space=env.action_space)
         # agent_opponent = deepcopy(agent_learn)
+        net2 = Net(
+            state_shape=observation_space.shape or observation_space.n,
+            action_shape=env.action_space.shape or env.action_space.n,
+            hidden_sizes=args.hidden_sizes,
+            softmax=True,
+            num_atoms=51,
+            dueling_param=({
+                "linear_layer": noisy_linear
+            }, {
+                "linear_layer": noisy_linear
+            }),
+            device=args.device,
+        ).to(args.device)
+        optim2 = torch.optim.Adam(net2.parameters(), lr=args.lr)
+
         agent_opponent = RainbowPolicy(
-            model=net,
-            optim=optim,
+            model=net2,
+            optim=optim2,
             action_space=env.action_space,
             discount_factor=args.gamma,
             estimation_step=args.n_step,

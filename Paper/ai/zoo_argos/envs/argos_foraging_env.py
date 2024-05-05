@@ -24,6 +24,9 @@ class State(Enum):
     WEAK_GETTING_CLOSE = 8
     WEAK_GETTING_CLOSE_TO_NEST = 9
     WEAK_GETTING_AWAY_FROM_NEST = 10
+    TRY_TO_AVOID_COLLISION = 11
+    TRY_TO_MOVE_AWAY_FROM_COLLISION = 12
+    POINTLESS_ROTATING = 13
 
 
 REWARD_MAP = {
@@ -31,12 +34,15 @@ REWARD_MAP = {
     State.BUMP: -15,
     State.PICK: 100,
     State.DROP: 300,
-    State.GETTING_CLOSE: 2,
+    State.GETTING_CLOSE: 1,
     State.GETTING_CLOSE_TO_NEST: 1,
     State.GETTING_AWAY_FROM_NEST: 1,
-    State.WEAK_GETTING_CLOSE: 0.1,
-    State.WEAK_GETTING_CLOSE_TO_NEST: 0.1,
-    State.WEAK_GETTING_AWAY_FROM_NEST: 0.1,
+    State.WEAK_GETTING_CLOSE: -0.1,
+    State.WEAK_GETTING_CLOSE_TO_NEST: -0.1,
+    State.WEAK_GETTING_AWAY_FROM_NEST: -0.1,
+    State.TRY_TO_AVOID_COLLISION: -0.5,
+    State.TRY_TO_MOVE_AWAY_FROM_COLLISION: -0.1,
+    State.POINTLESS_ROTATING: -15
 }
 
 FAST_CHANGE = 0.0085
@@ -54,12 +60,16 @@ class ArgosForagingEnv(AECEnv):
         self.argos = None
         self.argos_io = None
         self.verbose = verbose if verbose != None else render_mode == 'human'
-        self.actions_history = {"robot_0": [], "robot_1": []}
-        self.obs_history = {"robot_0": [], "robot_1": []}
+
         self.env_id = 0
         self.delivered_food = 0
 
         self.possible_agents = ["robot_" + str(r) for r in range(self.num_robots)]
+
+        self.actions_history = {agent: [] for agent in self.possible_agents}
+        self.actions_history_int = {agent: [] for agent in self.possible_agents}
+        self.obs_history = {agent: [] for agent in self.possible_agents}
+
         # optional: a mapping between agent name and ID
         self.agent_name_mapping = dict(
             zip(self.possible_agents, list(range(len(self.possible_agents))))
@@ -168,8 +178,7 @@ class ArgosForagingEnv(AECEnv):
                 # self.reset()
             # self.argos = Argos(self.num_robots, render_mode=self.render_mode, verbose=self.render_mode == 'human')
 
-        self.actions_history = {"robot_0": [], "robot_1": []}
-        self.obs_history = {"robot_0": [], "robot_1": []}
+
         self.iter = 0
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
@@ -181,8 +190,12 @@ class ArgosForagingEnv(AECEnv):
         self.env_id = self.env_id + 1
         self.delivered_food = 0
 
-        self.observations = {agent: BotObservations([]).flatten_observations() for agent in self.agents}
-        self.previous_observations = {agent: BotObservations([]) for agent in self.agents}
+        self.actions_history = {agent: [] for agent in self.agents}
+        self.actions_history_int = {agent: [] for agent in self.agents}
+        self.obs_history = {agent: [] for agent in self.agents}
+
+        self.observations = {agent: BotObservations([], self.num_robots).flatten_observations() for agent in self.agents}
+        self.previous_observations = {agent: BotObservations([], self.num_robots) for agent in self.agents}
 
         self.game_over = False
 
@@ -198,6 +211,7 @@ class ArgosForagingEnv(AECEnv):
         self.iter = self.iter + 1
         agent = self.agent_selection
         self.actions_history[agent].append(f"{self.iter}: {action}")
+        self.actions_history_int[agent].append(action)
         agent_id = self.agent_name_mapping[agent]
         startingProblem = False
         if (
@@ -221,7 +235,7 @@ class ArgosForagingEnv(AECEnv):
         # in_msg = self.argos_io.receive_from(agent_id)
         in_msg = self.argos.receive_from(agent_id)
         in_msg = in_msg.split(";")
-        mapped_obs = BotObservations(in_msg)
+        mapped_obs = BotObservations(in_msg, self.num_robots)
         prev_obs = self.previous_observations[agent]
         # if (mapped_observations.hasFood):
         #     a = 1
@@ -233,12 +247,18 @@ class ArgosForagingEnv(AECEnv):
             self.obs_history[agent].append(f"{mapped_obs.iter}: {mapped_obs.xPos}; {mapped_obs.yPos}; {mapped_obs.zRot}")
             obs_iter_diff = mapped_obs.iter - prev_obs.iter
 
+            if agent_id == 0:
+                debug_point = 1
+
 
             # if (agent_id == 0 and len(mapped_obs.cameraReadings) != 0):
             #     print(mapped_obs.cameraReadings[0].x, mapped_obs.cameraReadings[0].y)
 
             # if (agent_id == 0):
             #     print(cos(mapped_obs.zRot), sin(mapped_obs.zRot))
+
+            # if (agent_id == 0):
+            #     print(mapped_obs.xPos, mapped_obs.yPos, mapped_obs.prox_vector_length())
 
             
             self.observations[agent] = mapped_obs.flatten_observations()
@@ -256,6 +276,64 @@ class ArgosForagingEnv(AECEnv):
                     a = 1
                 # if (obs_iter_diff >=2 or obs_iter_diff == 0):
                 #     print(agent, "BAD STEP", obs_iter_diff)
+
+                just_rotating = False
+                # if (len(self.actions_history_int[agent]) > 35):
+                #     last_actions = self.actions_history_int[agent][len(self.actions_history_int[agent])-1-35:]
+                #     rotating_left = False
+                #     rotating_right = False
+                #     forward_in_row = 0
+                #     its_fine = False
+                #     for e in last_actions:
+                #         if e == 1:
+                #             rotating_left = True
+                #             forward_in_row = 0
+                #         if e == 2:
+                #             rotating_right = True
+                #             forward_in_row = 0
+                #         if e==0:
+                #             forward_in_row += 1
+                #         if (forward_in_row >= 4):
+                #             its_fine = True
+                #     just_rotating = not its_fine
+
+
+                # if (len(self.actions_history_int[agent]) > 35):
+                #     rotating_left = False
+                #     rotating_right = False
+                #     forward_in_row = 0
+                #     rotating_iter = 0
+                #     pattern_continues = 0
+                #     last_actions = self.actions_history_int[agent][len(self.actions_history_int[agent])-1-35::-1]
+                #     for e in last_actions:
+                #         if e == 0:
+                #             forward_in_row+=1
+                #         if e==1:
+                #             rotating_left = True
+                #             forward_in_row=0
+                #         if e==2:
+                #             rotating_right = True
+                #             forward_in_row=0
+                #         if forward_in_row > 3:
+                #             just_rotating = False
+                #             break
+                #         if rotating_left and rotating_right:
+                #             pattern_continues+=1
+                #         if pattern_continues > 10 and action != 0:
+                #             just_rotating = True
+                #             break
+
+                # if (len(self.actions_history_int[agent]) > 35):
+                #     rotating_left = False
+                #     rotating_right = False
+                #     forward_in_row = 0
+                #     rotating_iter = 0
+                #     pattern_continues = 0
+                #     last_actions = self.actions_history_int[agent][len(self.actions_history_int[agent])-1-35::-1]
+
+                        
+                    
+
                 if (prev_obs.hasFood and not mapped_obs.hasFood):
                     self.rewards[agent] = REWARD_MAP[State.DROP]
                     self.delivered_food += 1
@@ -264,9 +342,31 @@ class ArgosForagingEnv(AECEnv):
                     self.rewards[agent] = REWARD_MAP[State.PICK]
                     # print(agent, "ENV", self.env_id, " ACTUALLY PICKED FOOD AT ", mapped_observations.xPos, "  ", mapped_observations.yPos)
                 elif (mapped_obs.isCollision):
-                    self.rewards[agent] = REWARD_MAP[State.BUMP]
+                    if (not prev_obs.isCollision):
+                        self.rewards[agent] = REWARD_MAP[State.BUMP]
+                        if (agent_id == 0 and self.render_mode == 'human'):
+                            print(self.iter, "BUMP", REWARD_MAP[State.BUMP])
+                    else:
+                        if (prev_obs.xPos == mapped_obs.xPos and prev_obs.yPos == mapped_obs.yPos and prev_obs.zRot != mapped_obs.zRot):
+                            self.rewards[agent] = REWARD_MAP[State.TRY_TO_AVOID_COLLISION]
+                            if (agent_id == 0 and self.render_mode == 'human'):
+                                print(self.iter, "TRY TO AVOID COLLISION", REWARD_MAP[State.TRY_TO_AVOID_COLLISION])
+                        elif (prev_obs.prox_vector_length() > mapped_obs.prox_vector_length()):
+                            self.rewards[agent] = REWARD_MAP[State.TRY_TO_MOVE_AWAY_FROM_COLLISION]
+                            if (agent_id == 0 and self.render_mode == 'human'):
+                                print(self.iter, "TRY TO MOVE AWAY FROM COLLISION", REWARD_MAP[State.TRY_TO_MOVE_AWAY_FROM_COLLISION])
+                        else:
+                            self.rewards[agent] = REWARD_MAP[State.BUMP]
+                            if (agent_id == 0 and self.render_mode == 'human'):
+                                print(self.iter, "BUMP", REWARD_MAP[State.BUMP])
+                elif (not mapped_obs.isCollision and prev_obs.isCollision):
+                    self.rewards[agent] = -REWARD_MAP[State.BUMP]
                     if (agent_id == 0 and self.render_mode == 'human'):
-                        print(self.iter, "BUMP", REWARD_MAP[State.BUMP])
+                        print(self.iter, "UNBUMP", -REWARD_MAP[State.BUMP])
+                elif (just_rotating):
+                    self.rewards[agent] = REWARD_MAP[State.POINTLESS_ROTATING]
+                    if (agent_id == 0 and self.render_mode == 'human'):
+                        print(self.iter, "POINTLESS ROTATING", REWARD_MAP[State.POINTLESS_ROTATING])
                 elif (not mapped_obs.hasFood and mapped_obs.food_approaching_diff(prev_obs) > FAST_CHANGE * obs_iter_diff):
                     if (agent_id == 0 and self.render_mode == 'human'):
                         print(self.iter, "closer to food", REWARD_MAP[State.GETTING_CLOSE])
@@ -366,6 +466,7 @@ class ArgosForagingEnv(AECEnv):
             # if (agent_id == 0):
             self.terminations[agent] = True
             self.game_over = True
+        
         # if (agent_id == 1 and self._cumulative_rewards[agent] < -600):
         #     # if (agent_id == 0):
         #     self.terminations[agent] = True
@@ -407,8 +508,9 @@ class ArgosForagingEnv(AECEnv):
         
 class BotObservations:
     
-    def __init__(self, raw_observations: list[str]) -> None:
+    def __init__(self, raw_observations: list[str], num_robots) -> None:
         self.isValid = False
+        self.num_robots = num_robots
         try:
             # for e in raw_observations:
             #     if e.find('\\') != -1 or e.find('x') != -1 or e.find('00') != -1:
@@ -433,9 +535,11 @@ class BotObservations:
                     self.rabReadings.append(RabReading(
                         x=float(raw_observations[next_index]),
                         y=float(raw_observations[next_index+1]),
-                        has_food=bool(raw_observations[next_index+2]),
-                        see_food=bool(raw_observations[next_index+3]),
+                        has_food=bool(int(raw_observations[next_index+2])),
+                        see_food=bool(int(raw_observations[next_index+3])),
                     ))
+                    if self.rabReadings[len(self.rabReadings)-1].has_food and self.rabReadings[len(self.rabReadings)-1].see_food:
+                        debug_point = 1
                     next_index += 4
 
             cameraReadingsSize = int(raw_observations[next_index]) if len(raw_observations) > next_index else 0
@@ -464,14 +568,13 @@ class BotObservations:
                                  int(self.inNest), int(self.hasFood), self.xProx, self.yProx, int(self.isCollision)], self.get_max_len_rab_readings(), self.get_max_len_camera_readings() ])
     
     def get_max_len_rab_readings(self):
-        num_robots = 2 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        max_len = num_robots - 1
+        max_len = self.num_robots - 1
         result = []
         for i in range(len(self.rabReadings)):
             result.append(self.rabReadings[i].flatten_observations())
         for i in range(max_len - len(result)):
             result.append(RabReading(0,0,0,0).flatten_observations())
-        return np.concatenate(result)
+        return np.concatenate(result) if len(result) > 0 else []
     
     def get_closest_food(self):
         return functools.reduce(lambda a, b: b if b.is_blue() and self.vector_length(b.x, b.y) < self.vector_length(a.x, a.y) else a, 
@@ -533,6 +636,9 @@ class BotObservations:
     def light_vector_length(self):
         return math.sqrt(self.xLight * self.xLight + self.yLight * self.yLight)
     
+    def prox_vector_length(self):
+        return math.sqrt(self.xProx * self.xProx + self.yProx * self.yProx)
+    
     def vector_length(self, x, y):
         return math.sqrt(x * x + y * y)
 
@@ -571,7 +677,7 @@ class RabReading:
                self.see_food == other.see_food
     
     def flatten_observations(self):
-        return np.array([self.x, self.y, self.has_food, self.see_food])
+        return np.array([self.x, self.y, int(self.has_food), int(self.see_food)])
 
 class CameraReading:
     def __init__(self, x: float, y: float, angle: float, r: int, g: int, b: int) -> None:

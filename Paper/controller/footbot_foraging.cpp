@@ -523,7 +523,7 @@ CVector2 CFootBotForaging::CalculateTrueVectorToLight() {
    }
    /* If the light was perceived, return the vector */
    if(cAccumulator.Length() > 0.0f) {
-      return CVector2(cAccumulator.Length(), cAccumulator.Angle());
+      return CVector2(cAccumulator.Length() > 1 ? 1 : cAccumulator.Length(), cAccumulator.Angle());
    }
    /* Otherwise, return zero */
    else {
