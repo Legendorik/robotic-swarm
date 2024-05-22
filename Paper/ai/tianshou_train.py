@@ -132,7 +132,7 @@ def _get_agents(
         #     agent_learn.load_state_dict(torch.load(args.resume_path))
         if (args.watch):
             ### !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            agent_learn.load_state_dict(torch.load('./log/ttt/dqn/policy_0.pth'))
+            agent_learn.load_state_dict(torch.load('./log/policies/policy_0_rainbow.pth'))
 
     if agent_opponent is None:
         # agent_opponent = RandomPolicy(action_space=env.action_space)
@@ -164,8 +164,7 @@ def _get_agents(
         # if args.resume_path:
         #     agent_opponent.load_state_dict(torch.load(args.resume_path))
         if (args.watch):
-            agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_1.pth'))
-            # agent_opponent.load_state_dict(torch.load('./log/ttt/dqn/policy_1 5 (actually good).pth'))
+            agent_opponent.load_state_dict(torch.load('./log/policies/policy_0_rainbow.pth'))
 
     agents = [agent_learn, agent_opponent]
     policy = MultiAgentPolicyManager(policies=agents, env=env)
